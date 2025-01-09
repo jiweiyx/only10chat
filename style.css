@@ -1,104 +1,186 @@
-/* Chat container styles */
+/* Base styles */
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
 .chat-container {
     max-width: 800px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: #fff;
+    margin: 0 auto;
+    background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 90vh;
 }
 
 .chat-header {
+    padding: 15px;
+    background: #007bff;
+    color: white;
+    border-radius: 8px 8px 0 0;
     text-align: center;
-    margin-bottom: 20px;
 }
 
 .chat-header h1 {
     margin: 0;
-    color: #333;
+    font-size: 1.5em;
 }
 
 .chat-header h6 {
     margin: 5px 0 0;
-    color: #666;
+    font-weight: normal;
 }
 
-/* Chat box styles */
 #chat-box {
-    height: 400px;
+    flex: 1;
     overflow-y: auto;
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-bottom: 20px;
-    background-color: #f9f9f9;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-/* Message styles */
-.message {
-    margin-bottom: 10px;
-    padding: 8px 12px;
+.input-container, .media-controls {
+    padding: 15px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #ddd;
+    align-items: center;
+}
+
+#message-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    font-size: 14px;
+}
+
+#submit-message,
+#submit-file,
+.record-button {
+    padding: 10px 20px;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#submit-message:hover,
+#submit-file:hover,
+.record-button:hover {
+    background-color: #1557b0;
+}
+
+.record-button.recording {
+    background-color: #dc3545;
+}
+
+.record-button.recording:hover {
+    background-color: #c82333;
+}
+
+#file-input {
+    display: none;
+}
+
+.preview-container {
+    position: relative;
+    margin-top: 10px;
+}
+
+#image-preview {
+    display: none;
+    max-width: 200px;
+    max-height: 200px;
+    margin-top: 10px;
+    border-radius: 4px;
+}
+
+.message {
+    padding: 10px;
+    border-radius: 8px;
     max-width: 70%;
     word-wrap: break-word;
 }
 
-.message-info {
-    font-size: xx-small;
-    color: darkgray;
-    display: flex;
-    justify-content: space-between;
-    margin-top: 4px;
+.sent {
+    align-self: flex-end;
+    background: #007bff;
+    color: white;
+}
+
+.received {
+    align-self: flex-start;
+    background: #e9ecef;
+    color: black;
 }
 
 .message-sender {
+    font-size: 12px;
+    margin-bottom: 4px;
     font-weight: bold;
 }
 
-.message-timestamp {
+.message-text {
+    margin-bottom: 4px;
+}
+
+.timestamp {
+    font-size: 10px;
+    opacity: 0.7;
     text-align: right;
-    margin-left: 8px;
-}
-.message.received {
-    background-color: #e9ecef;
-    float: left;
-    clear: both;
 }
 
-.message.sent {
-    background-color: #007bff;
-    color: white;
-    float: right;
-    clear: both;
-}
-
-.message img {
-    max-width: 200px;
-    max-height: 200px;
+.message-image {
+    max-width: 100%;
     border-radius: 4px;
-    cursor: pointer;
-    transition: transform 0.3s ease;
 }
 
-.message img.enlarged {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-width: 90vw;
-    max-height: 90vh;
-    z-index: 1000;
-}
-
-.preview-container {
-    margin: 10px 0;
+.system-message {
     text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 5px;
 }
 
-#image-preview {
-    max-width: 150px;
-    max-height: 150px;
-    display: none;
-    margin: 0 auto;
+.error {
+    color: #dc3545;
+}
+
+.connection-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.connection-status.connected {
+    background: #28a745;
+    color: white;
+}
+
+.connection-status.disconnected {
+    background: #dc3545;
+    color: white;
+}
+
+.connection-status.error {
+    background: #ffc107;
+    color: black;
+}
+
+.send-image-btn {
+    margin-left: 10px;
+    background: #28a745;
 }
 
 .overlay {
@@ -108,95 +190,71 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    z-index: 999;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
 }
 
-#file-input {
-    display: none;
-}
-
-.message::after {
-    content: "";
-    display: table;
-    clear: both;
-}
-
-/* System message styles */
-.system-message {
-    text-align: center;
-    color: #666;
+.image-container {
     margin: 10px 0;
-    clear: both;
-    font-size: xx-small;
 }
 
-.system-message.error {
-    color: #dc3545;
-    font-weight: bold;
-}
-
-.system-message.success {
-    color: #28a745;
-    font-weight: bold;
-}
-
-/* Input container styles */
-.input-container {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    width:100%;
-}
-
-#message-input {
-    flex-grow: 1;
-    flex:8.5;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 100%;
-    box-sizing: border-box;
-}
-#submit-message{
-    flex:1.5;
-    width:100%;
-}
-
-#submit-message{
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
+.chat-image.thumbnail {
+    max-width: 200px;
+    max-height: 200px;
     cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-#submit-message:hover, #submit-file:hover {
-    background-color: #0056b3;
-}
-
-#file-input {
-    display: none;
-}
-
-/* Connection status styles */
-.connection-status {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
     border-radius: 4px;
-    font-size: 14px;
 }
 
-.connected {
-    background-color: #28a745;
-    color: white;
+.full-image-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    cursor: pointer;
 }
 
-.disconnected {
-    background-color: #dc3545;
-    color: white;
+.full-image {
+    max-width: 90%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+audio {
+    max-width: 100%;
+    margin-top: 5px;
+}
+/* Image preview that floats full-screen on top */
+.image-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Maintain aspect ratio */
+    background: rgba(0, 0, 0, 0.5); /* Slight background overlay to emphasize the image */
+    z-index: 9999; /* Ensure it floats above other content */
+    display: block;
+}
+
+/* Styling for send and cancel buttons */
+.send-image-btn, .cancel-image-btn {
+    position: fixed;
+    top: 80%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+/* Position the cancel button */
+.cancel-image-btn {
+    top: 90%;
 }
