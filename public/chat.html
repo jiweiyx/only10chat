@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time chat application">
+    <title>聊天室</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div id="chat-box"></div>
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="在这里输入消息（最多100字）" autocomplete="off" maxlength="100">
+            <button id = "submit-message">发送</button>
+        </div>
+        <div class="media-controls">
+            <button id="submit-file">发送图片</button>
+            <input type="file" id="file-input" accept="image/*">
+            <button id="record-audio" class="record-button">按住说话</button>
+            <div id="systemDiv"></div>
+        </div>
+        <div class="overlay" id="overlay"></div>
+    </div>
+    <div id="connection-status" class="connection-status"></div>
+    <script src="script.js"></script>
+</body>
+</html>

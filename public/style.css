@@ -1,0 +1,271 @@
+/* Base styles */
+body {
+    margin: 0;
+    padding: 5px;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
+.chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 95vh;
+}
+
+#chat-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.input-container, .media-controls {
+    padding: 15px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #ddd;
+    align-items: center;
+}
+
+#message-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#submit-message,
+#submit-file,
+.record-button {
+    padding: 10px 20px;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#submit-message:hover,
+#submit-file:hover,
+.record-button:hover {
+    background-color: #1557b0;
+}
+
+.record-button.recording {
+    background-color: #dc3545;
+}
+
+.record-button.recording:hover {
+    background-color: #c82333;
+}
+
+#file-input {
+    display: none;
+}
+
+.message {
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 70%;
+    word-wrap: break-word;
+}
+
+.sent {
+    align-self: flex-end;
+    background: #007bff;
+    color: white;
+}
+
+.received {
+    align-self: flex-start;
+    background: #e9ecef;
+    color: black;
+}
+
+.message-sender {
+    font-size: 12px;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+.message-text {
+    margin-bottom: 4px;
+}
+
+.timestamp {
+    font-size: 10px;
+    opacity: 0.7;
+    text-align: right;
+}
+
+.message-image {
+    max-width: 100%;
+    border-radius: 4px;
+}
+
+.system-message {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 5px;
+}
+
+.error {
+    color: #dc3545;
+}
+
+.connection-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.connection-status.connected {
+    background: #28a745;
+    color: white;
+}
+
+.connection-status.disconnected {
+    background: #dc3545;
+    color: white;
+}
+
+.connection-status.error {
+    background: #ffc107;
+    color: black;
+}
+
+.send-image-btn {
+    margin-left: 10px;
+    background: #28a745;
+}
+/* Preview Container */
+.preview-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%; 
+    max-width: 600px;  
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 100;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-top: 10px;  
+}
+
+/* Image Preview */
+.image-preview {
+    border: 5px solid green;
+    width: 100%;  
+    height: auto; 
+    max-height: 80vh;  
+    object-fit: contain; 
+    flex-grow: 1;  
+}
+
+/* Button Container */
+.button-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    width: auto; /* Adjust width to buttons' size */
+}
+
+.send-image-btn, .cancel-image-btn {
+    padding: 12px 25px;
+    font-size: 18px;
+    border: none;
+    border-radius: 30px;
+    color: white;
+    background: linear-gradient(45deg, #4CAF50, #8BC34A); /* Green gradient */
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.send-image-btn:hover, .cancel-image-btn:hover {
+    background: linear-gradient(45deg, #8BC34A, #4CAF50); /* Reverse gradient on hover */
+}
+
+.send-image-btn:active, .cancel-image-btn:active {
+    transform: scale(0.98); /* Slight scale effect on click */
+}
+.cancel-image-btn {
+    background: linear-gradient(45deg, #f44336, #FF5722); /* Red gradient */
+}
+
+.cancel-image-btn:hover {
+    background: linear-gradient(45deg, #FF5722, #f44336);
+}
+
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+/* Image container for small preview */
+.image-container {
+    margin: 10px 0;
+}
+
+/* Thumbnail preview for images */
+.chat-image.thumbnail {
+    max-width: 200px;
+    max-height: 200px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* Full image overlay when clicked */
+.full-image-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    cursor: pointer;
+}
+
+.full-image {
+    max-width: 90%;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+/* Audio player styling */
+audio {
+    max-width: 100%;
+    margin-top: 5px;
+}
