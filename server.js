@@ -23,15 +23,11 @@ const MessageType = {
 
 const clients = new Map();
 
-// Serve static files
-app.get('/',(req,res)=>{
-    res.redirect(`/chat`);
-})
-app.get('/chat', (req, res) => {
+app.get('/', (req, res) => {
     chatId = req.query.id;
     if (!chatId) {
         const newChatID = uuidv4();
-        return res.redirect(`/chat?id=${newChatID}`);
+        return res.redirect(`/?id=${newChatID}`);
     }
 
     // 返回 chat.html 文件
@@ -42,7 +38,20 @@ app.get('/chat', (req, res) => {
         }
     });
 });
+app.get('/history', async (req, res) => {
+    const { chatId, before } = req.query;
+    if (!chatId) {
+        return res.status(400).send({ error: "chatId is required" });
+    }
 
+    try {
+        const olderMessages = await findOlderMessages(chatId, before, 10);
+        res.json(olderMessages);
+    } catch (err) {
+        console.error("Error fetching chat history:", err);
+        res.status(500).send({ error: "Failed to fetch chat history" });
+    }
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -62,9 +71,15 @@ wss.on('connection', (ws,req) => {
     
     clients.set(ws, clientInfo);
     console.log(`Client ${clientInfo.id} connected,chatid:${clientInfo.chatId}`);
-    const onlineUsers = Array.from(clients.values()).map(clientInfo => clientInfo.id);
+    
+    const onlineUsers = [];
+    clients.forEach((clientInfo) => {
+        if (clientInfo.chatId === chatId) {
+            onlineUsers.push(clientInfo.id);
+        }
+    });
     sendSystemMessage(ws,`YourID:${clientInfo.id}`);
-    sendSystemMessageToAll(`${clientInfo.id}加入,当前在线人数：${clients.size}(${onlineUsers.join(', ')})`);
+    sendSystemMessageToOthers(clientInfo.chatId,`${clientInfo.id}Join,Onlines:${clients.size}(${onlineUsers.join(', ')})`);
     ws.on('message', (message) => handleMessage(ws, message, clientInfo));
     ws.on('close', () => handleDisconnection(ws, clientInfo));
     ws.on('error', (error) => handleError(ws, error, clientInfo));
@@ -91,18 +106,42 @@ async function insertChat(newChat) {
       await client.close();
     }
   }
-  // 查：按条件查询
-async function findUserByChatID(chatId) {
+  async function findOlderMessages(chatId, beforeId=null, limit = 10) {
     const { client, collection } = await connectToDB();
+    console.log(`Finding messages for chatId: ${chatId}, beforeId: ${beforeId}, limit: ${limit}`);
     try {
-      const chatHistory = await collection.findOne({ chatId });
-      return chatHistory;
+        // 构造查询条件
+        const query = { chatId };
+
+        // 如果提供了 beforeId，则添加 _id 小于 beforeId 的条件
+        if (beforeId !== null && ObjectId.isValid(beforeId)) {
+            if (ObjectId.isValid(beforeId)) {
+                query._id = { $lt: new ObjectId(beforeId) };
+            } else {
+                console.warn(`Invalid beforeId provided: ${beforeId}`);
+                throw new Error(`Invalid beforeId: ${beforeId}`);
+            }
+        }
+
+        // 查询数据，按 _id 降序排序并限制返回数量
+        const chatHistory = await collection
+            .find(query)
+            .sort({ _id: -1 }) // 最新记录在前
+            .limit(limit)
+            .toArray();
+
+        // 结果翻转以确保客户端按时间升序显示
+        return chatHistory.reverse();
     } catch (err) {
-      console.error(`Failed to find chatHistory with chatId: ${chatId}:`, err);
+        console.error(`Error finding messages for chatId: ${chatId}, beforeId: ${beforeId}:`, err);
+        return [];
     } finally {
-      await client.close();
+        // 确保数据库连接关闭
+        if (client) {
+            await client.close();
+        }
     }
-  }
+}
 
   function broadcast(chatId, message, sender = null) {
     const messageString = JSON.stringify(message);
@@ -148,7 +187,7 @@ function handleMessage(ws, message, clientInfo) {
                 break;
 
             case MessageType.IMAGE:
-                console.log(`Received image from client ${clientInfo.id}`);
+                console.log(`Received image from chatroom ${chatId},client ${clientInfo.id}`);
                 broadcast(chatId,{
                     type: MessageType.IMAGE,
                     senderId: clientInfo.id,
@@ -158,7 +197,7 @@ function handleMessage(ws, message, clientInfo) {
                 break;
 
             case MessageType.AUDIO:
-                console.log(`Received audio from client ${clientInfo.id}`);
+                console.log(`Received audio chatroom ${chatId},from client ${clientInfo.id}`);
                 broadcast(chatId,{
                     type: MessageType.AUDIO,
                     senderId: clientInfo.id,
@@ -171,6 +210,15 @@ function handleMessage(ws, message, clientInfo) {
                 console.warn(`Unknown message type from client ${clientInfo.id}`);
                 sendErrorMessage(ws, 'Invalid message type');
         }
+        //save message to database
+        insertChat({
+            chatId: chatId,
+            senderId: clientInfo.id,
+            content: parsedMessage.content,
+            type: parsedMessage.type,
+            timestamp: new Date().toISOString()
+        });
+
     } catch (error) {
         console.error('Error processing message:', error);
         sendErrorMessage(ws, 'Error processing message');
@@ -179,13 +227,15 @@ function handleMessage(ws, message, clientInfo) {
 
 function handleDisconnection(ws, clientInfo) {
     console.log(`Client ${clientInfo.id} disconnected`);
+    chatId = clientInfo.chatId;
     clients.delete(ws);
-    // 获取所有在线的用户ID
     const onlineUsers = [];
     clients.forEach((clientInfo) => {
-        onlineUsers.push(clientInfo.id); // 收集所有客户端的ID
+        if (clientInfo.chatId === chatId) {
+            onlineUsers.push(clientInfo.id);
+        }
     });
-    sendSystemMessageToAll(`${clientInfo.id}离开了, 当前在线人数：${clients.size}(${onlineUsers.join(', ')})`);
+    sendSystemMessageToOthers(chatId,`${clientInfo.id}leave,online:${clients.size}(${onlineUsers.join(', ')})`);
 }
 
 function handleError(ws, error, clientInfo) {
@@ -202,9 +252,9 @@ function sendSystemMessage(ws, message) {
         }));
     }
 }
-function sendSystemMessageToAll(message) {
+function sendSystemMessageToOthers(chatId,message) {
     clients.forEach((clientInfo, ws) => {
-        sendSystemMessage(ws, message);
+        if (clientInfo.chatId == chatId){sendSystemMessage(ws, message);}
     });
 }
 

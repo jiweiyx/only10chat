@@ -4,8 +4,9 @@
     let audioChunks;
     let isRecording = false;
     let myID;
-    let chatID;
-    
+    let chatId;
+    let lastLoadedMessageId = null; // 保存最早一条消息的 ID，用于分页
+
     const messageInput = document.getElementById('message-input');
     const submitButton = document.getElementById('submit-message');
     const chatBox = document.getElementById('chat-box');
@@ -13,8 +14,37 @@
     const submitFileButton = document.getElementById('submit-file');
     const recordButton = document.getElementById('record-audio');
     const connectionStatus = document.getElementById('connection-status');
-    const imagePreview = document.getElementById('image-preview');
     
+    let isLoading = false;
+    chatBox.addEventListener('scroll',() => {
+        if (chatBox.scrollTop === 0) { // 滚动到顶部
+            loadMoreMessages();
+        }
+    });
+    
+async function loadMoreMessages() {
+    if (isLoading) return;
+    isLoading = true;
+    try {
+        const response = await fetch(`/history?chatId=${chatId}&before=${lastLoadedMessageId}`);
+        const olderMessages = await response.json();
+
+        if (olderMessages.length > 0) {
+            console.log("Loaded older messages:", olderMessages);
+            // 保存新的最早一条消息 ID
+            lastLoadedMessageId = olderMessages[0]._id;
+
+            // 插入新的消息到聊天窗口顶部
+            olderMessages.reverse().forEach(message => {
+                handleMessage(message,history=true);
+            });
+        }
+    } catch (err) {
+        console.error("Failed to load more messages:", err);
+    }finally {
+        isLoading = false;
+    }
+}
     // Event listeners for file input and preview
     fileInput.addEventListener('change', handleFileSelect);
     submitFileButton.addEventListener('click', () => {
@@ -149,12 +179,13 @@
 
     function connect() {
         const urlParams = new URLSearchParams(window.location.search);
-        const chatId = urlParams.get('id');
+        chatId = urlParams.get('id');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/?id=${chatId}`; // Include chatID in the URL
+        const wsUrl = `${protocol}//${window.location.host}/?id=${chatId}`; 
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             showConnectionStatus('Connected', 'connected');
+            loadMoreMessages();
         };
         
         socket.onclose = () => {
@@ -165,23 +196,31 @@
         socket.onerror = () => {
             showConnectionStatus('Connection error', 'error');
         };
-        
-        socket.onmessage = handleMessage;
-    }
+        socket.onmessage = (event) => handleMessage(JSON.parse(event.data));    }
     
-    function handleMessage(event) {
+    function handleMessage(message,history=false) {
         try {
-            const message = JSON.parse(event.data);
-            
             switch (message.type) {
                 case 'text':
-                    displayMessage(message.content, 'received', message.timestamp, message.senderId);
+                    if (message.senderId == myID){
+                        displayMessage(message.content, 'sent', message.timestamp, message.senderId,history);
+                    }else{
+                        displayMessage(message.content, 'received', message.timestamp, message.senderId,history);
+                    }
                     break;
                 case 'image':
-                    displayImage(message.content, 'received', message.timestamp, message.senderId);
+                    if (message.senderId == myID){
+                        displayImage(message.content, 'sent', message.timestamp, message.senderId,history);
+                    }else{
+                        displayImage(message.content, 'received', message.timestamp, message.senderId,history);
+                    }
                     break;
                 case 'audio':
-                    displayAudio(message.content, 'received', message.timestamp, message.senderId);
+                    if (message.senderId == myID){
+                        displayAudio(message.content, 'sent', message.timestamp, message.senderId,history);
+                    }else{
+                        displayAudio(message.content, 'received', message.timestamp, message.senderId,history);
+                    }
                     break;
                 case 'system':
                     if (message.content.startsWith('YourID')) {
@@ -225,7 +264,7 @@
         }
     }
 
-    function displayMessage(content, type, timestamp, sender) {
+    function displayMessage(content, type, timestamp, sender,history=false) {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
@@ -243,10 +282,10 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         messageDiv.appendChild(timeDiv);
         
-        appendMessage(messageDiv);
+        appendMessage(messageDiv,history);
     }
 
-    function displayImage(content, type, timestamp, sender) {
+    function displayImage(content, type, timestamp, sender,history=false) {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
@@ -285,10 +324,10 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         messageDiv.appendChild(timeDiv);
         
-        appendMessage(messageDiv);
+        appendMessage(messageDiv,history);
     }
 
-    function displayAudio(content, type, timestamp, sender) {
+    function displayAudio(content, type, timestamp, sender,history=false) {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
@@ -306,7 +345,7 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         messageDiv.appendChild(timeDiv);
         
-        appendMessage(messageDiv);
+        appendMessage(messageDiv,history);
     }
 
     function displaySystemMessage(content, isError = false) {
@@ -315,7 +354,6 @@
         messageDiv.textContent = content;
     }
     function scrollToLatestMessage() {
-        const chatBox = document.getElementById('chat-box');
         chatBox.scrollTop = chatBox.scrollHeight;  // 将滚动条设置为最新消息的底部
     }
     function createMessageElement(type) {
@@ -324,9 +362,14 @@
         return div;
     }
 
-    function appendMessage(messageDiv) {
-        chatBox.appendChild(messageDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
+    function appendMessage(messageDiv, history=false) {
+        if (history) {
+            chatBox.insertBefore(messageDiv, chatBox.firstChild);
+            chatBox.scrollTop = 0;
+        } else {
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     }
 
     function showConnectionStatus(message, type) {
