@@ -27,10 +27,14 @@ const MessageType = {
 const clients = new Map();
 
 app.get('/', (req, res) => {
+    res.sendFile('index.html', { root: path.join(__dirname, 'public') });
+})
+
+app.get('/chat', (req, res) => {
     chatId = req.query.id;
     if (!chatId) {
         const newChatID = uuidv4();
-        return res.redirect(`/?id=${newChatID}`);
+        return res.redirect(`/chat?id=${newChatID}`);
     }
 
     // 返回 chat.html 文件
@@ -53,7 +57,7 @@ wss.on('connection', (ws, req) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
     const combinedInfo = ip + userAgent;
-    const hash = (crc32.str(combinedInfo) >>> 0).toString(16).slice(0,4).toUpperCase(); // CRC32 校验和,非负数
+    const hash = (crc32.str(combinedInfo) >>> 0).toString(16).slice(0,2).toUpperCase(); // CRC32 校验和,非负数
     const clientInfo = {
         id: hash,
         chatId: chatId,
@@ -70,8 +74,7 @@ wss.on('connection', (ws, req) => {
         }
     });
     sendSystemMessage(ws, `YourID:${hash}`);
-    sendSystemMessage(ws, `Onlines: ${clients.size} (${onlineUsers.join(', ')})`);
-    sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}加入,当前在线${clients.size}人，代号：${onlineUsers.join(', ')}`);
+    sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}加入,当前在线${onlineUsers.length}人，代号：${onlineUsers.join(', ')}`);
 
     showHistory(chatId)
         .then(messages => {
@@ -95,7 +98,7 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
         clearInterval(interval);
         clients.delete(ws);
-        sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}离开,当前在线${clients.size}人，代号${onlineUsers.join(', ')}`);
+        sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}离开,当前在线${onlineUsers.length}人，代号${onlineUsers.join(', ')}`);
         });
     ws.on('error', (error) => handleError(ws, error, clientInfo));
 
@@ -126,7 +129,6 @@ async function connectToDB() {
         clientConnection = await MongoClient.connect(url);
         const db = clientConnection.db(dbName);
         dbCollection = db.collection(collectionName);
-        console.log('MongoDB is running!');
         return { collection: dbCollection };
     } catch (error) {
         console.error('MongoDB connection error:', error);
@@ -144,7 +146,6 @@ async function insertChat(newChat) {
 
         // Insert the new chat
         const result = await collection.insertOne(newChat);
-        console.log('Inserted chat:', result);
 
         // Use bulk operations for cleanup
         if (await collection.countDocuments({ chatId: newChat.chatId }) > 10) {
@@ -169,7 +170,6 @@ async function insertChat(newChat) {
 async function showHistory(chatId) {
     try {
         const { collection } = await connectToDB();
-        console.log(`Finding messages for chatId: ${chatId}`);
         const chatHistory = await collection
             .find({chatId: chatId})
             .toArray();
@@ -219,7 +219,6 @@ function handleMessage(ws, message, clientInfo) {
         // Handle different message types
         switch (parsedMessage.type) {
             case MessageType.TEXT:
-                console.log(`Received text message from chatroom ${chatId},client ${clientInfo.id}:`, parsedMessage.content);
                 broadcast(chatId,{
                     type: MessageType.TEXT,
                     senderId: clientInfo.id,
@@ -229,7 +228,6 @@ function handleMessage(ws, message, clientInfo) {
                 break;
 
             case MessageType.IMAGE:
-                console.log(`Received image from chatroom ${chatId},client ${clientInfo.id}`);
                 broadcast(chatId,{
                     type: MessageType.IMAGE,
                     senderId: clientInfo.id,
@@ -239,7 +237,6 @@ function handleMessage(ws, message, clientInfo) {
                 break;
 
             case MessageType.AUDIO:
-                console.log(`Received audio chatroom ${chatId},from client ${clientInfo.id}`);
                 broadcast(chatId,{
                     type: MessageType.AUDIO,
                     senderId: clientInfo.id,

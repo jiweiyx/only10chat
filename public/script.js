@@ -52,7 +52,7 @@
                     const base64Audio = reader.result;
                     sendMessage(base64Audio, 'audio');
                 };
-                stream.getTracks().forEach(track => track.stop());
+                    stream.getTracks().forEach(track => track.stop());
             };
             
             mediaRecorder.start(10); // Start recording with 10ms timeslice for smoother chunks
@@ -68,16 +68,20 @@
         } catch (err) {
             console.error('Error accessing microphone:', err);
             displaySystemMessage('Could not access microphone', true);
+            isRecording = false;
+            recordButton.classList.remove('recording');
+            recordButton.textContent = "按住说话";
         }
     }
 
     function stopRecording() {
         if (!isRecording || !mediaRecorder) return;
         
-        mediaRecorder.stop();
-        isRecording = false;
-        recordButton.classList.remove('recording');
-        recordButton.textContent = "按住说话";
+            mediaRecorder.stop();
+            clearTimeout(recordingTimeout);
+            recordButton.classList.remove('recording');
+            recordButton.textContent = "按住说话";
+            isRecording = false;
     }
     function toggleRecording(e){
         if (isRecording){
@@ -144,8 +148,14 @@
             messageInput.value = '';
         }
     }
+    let reconnectAttempts = 0;
+    let MAX_RECONNECT_ATTEMPTS = 5;
 
     function connect() {
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            displaySystemMessage('Maximum reconnection attempts reached', true);
+            return;
+        }
         const urlParams = new URLSearchParams(window.location.search);
         chatId = urlParams.get('id');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -153,11 +163,14 @@
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
             connectionStatus.className = `connection-status connected`;
+            reconnectAttempts = 0;
         };
         
         socket.onclose = () => {
             connectionStatus.className = `connection-status disconnected`;
-            setTimeout(connect, 5000);
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            setTimeout(connect, delay);
         };
         
         socket.onerror = () => {
@@ -353,11 +366,6 @@
         }
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    function showConnectionStatus(type) {
-        connectionStatus.className = `connection-status ${type}`;
-    }
-
     function escapeHtml(unsafe) {
         return unsafe
             .replace(/&/g, "&amp;")
