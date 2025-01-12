@@ -5,7 +5,6 @@
     let isRecording = false;
     let myID;
     let chatId;
-    let lastLoadedMessageId = null; // 保存最早一条消息的 ID，用于分页
 
     const messageInput = document.getElementById('message-input');
     const submitButton = document.getElementById('submit-message');
@@ -14,37 +13,6 @@
     const submitFileButton = document.getElementById('submit-file');
     const recordButton = document.getElementById('record-audio');
     const connectionStatus = document.getElementById('connection-status');
-    
-    let isLoading = false;
-    chatBox.addEventListener('scroll',() => {
-        if (chatBox.scrollTop === 0) { // 滚动到顶部
-            loadMoreMessages();
-        }
-    });
-    
-async function loadMoreMessages() {
-    if (isLoading) return;
-    isLoading = true;
-    try {
-        const response = await fetch(`/history?chatId=${chatId}&before=${lastLoadedMessageId}`);
-        const olderMessages = await response.json();
-
-        if (olderMessages.length > 0) {
-            console.log("Loaded older messages:", olderMessages);
-            // 保存新的最早一条消息 ID
-            lastLoadedMessageId = olderMessages[0]._id;
-
-            // 插入新的消息到聊天窗口顶部
-            olderMessages.reverse().forEach(message => {
-                handleMessage(message,history=true);
-            });
-        }
-    } catch (err) {
-        console.error("Failed to load more messages:", err);
-    }finally {
-        isLoading = false;
-    }
-}
     // Event listeners for file input and preview
     fileInput.addEventListener('change', handleFileSelect);
     submitFileButton.addEventListener('click', () => {
@@ -184,50 +152,51 @@ async function loadMoreMessages() {
         const wsUrl = `${protocol}//${window.location.host}/?id=${chatId}`; 
         socket = new WebSocket(wsUrl);
         socket.onopen = () => {
-            showConnectionStatus('Connected', 'connected');
-            loadMoreMessages();
+            connectionStatus.className = `connection-status connected`;
         };
         
         socket.onclose = () => {
-            showConnectionStatus('Disconnected', 'disconnected');
+            connectionStatus.className = `connection-status disconnected`;
             setTimeout(connect, 5000);
         };
         
         socket.onerror = () => {
-            showConnectionStatus('Connection error', 'error');
+            connectionStatus.className = `connection-status error`;
         };
-        socket.onmessage = (event) => handleMessage(JSON.parse(event.data));    }
+        socket.onmessage = (event) => handleMessage(JSON.parse(event.data));    
+    }
     
-    function handleMessage(message,history=false) {
+    function handleMessage(message) {
         try {
             switch (message.type) {
                 case 'text':
                     if (message.senderId == myID){
-                        displayMessage(message.content, 'sent', message.timestamp, message.senderId,history);
+                        console.log("Received text message:", message.content);
+                        displayMessage(message.content, 'sent', message.timestamp, message.senderId);
                     }else{
-                        displayMessage(message.content, 'received', message.timestamp, message.senderId,history);
+                        displayMessage(message.content, 'received', message.timestamp, message.senderId);
                     }
                     break;
                 case 'image':
                     if (message.senderId == myID){
-                        displayImage(message.content, 'sent', message.timestamp, message.senderId,history);
+                        displayImage(message.content, 'sent', message.timestamp, message.senderId);
                     }else{
-                        displayImage(message.content, 'received', message.timestamp, message.senderId,history);
+                        displayImage(message.content, 'received', message.timestamp, message.senderId);
                     }
                     break;
                 case 'audio':
                     if (message.senderId == myID){
-                        displayAudio(message.content, 'sent', message.timestamp, message.senderId,history);
+                        displayAudio(message.content, 'sent', message.timestamp, message.senderId);
                     }else{
-                        displayAudio(message.content, 'received', message.timestamp, message.senderId,history);
+                        displayAudio(message.content, 'received', message.timestamp, message.senderId);
                     }
                     break;
                 case 'system':
                     if (message.content.startsWith('YourID')) {
-                        myID = message.content.split(':')[1];
+                        myID = message.content.split(':')[1].trim();
                         console.log('Received MyID',myID);
                     }
-                    displaySystemMessage(message.content);
+                    displaySystemMessage(message.content, false);
                     break;
                 case 'error':
                     displaySystemMessage(message.content, true);
@@ -264,34 +233,48 @@ async function loadMoreMessages() {
         }
     }
 
-    function displayMessage(content, type, timestamp, sender,history=false) {
+    function displayMessage(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
-        
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
         senderDiv.textContent = sender || 'Anonymous';
         messageDiv.appendChild(senderDiv);
+        
+        const textBody = document.createElement('div');
+        textBody.className = 'message-text-body';
         
         const textDiv = document.createElement('div');
         textDiv.className = 'message-text';
         textDiv.innerHTML = escapeHtml(content);
-        messageDiv.appendChild(textDiv);
+        textBody.appendChild(textDiv);
         
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
-        timeDiv.textContent = formatTimestamp(timestamp);
-        messageDiv.appendChild(timeDiv);
-        
-        appendMessage(messageDiv,history);
+        timeDiv.textContent = new Date(timestamp).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
+        textBody.appendChild(timeDiv);
+
+        messageDiv.appendChild(textBody);
+        appendMessage(messageDiv);
     }
 
-    function displayImage(content, type, timestamp, sender,history=false) {
+    function displayImage(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
         senderDiv.textContent = sender || 'Anonymous';
         messageDiv.appendChild(senderDiv);
+
+        const textBody = document.createElement('div');
+        textBody.className = 'message-text-body';
         
         const imageContainer = document.createElement('div');
         imageContainer.className = 'image-container';
@@ -300,7 +283,7 @@ async function loadMoreMessages() {
         img.src = content;
         img.className = 'chat-image thumbnail';
         img.onload = () => {
-            scrollToLatestMessage();
+            chatBox.scrollTop = chatBox.scrollHeight;
         };
         img.onclick = () => {
             const fullImage = document.createElement('div');
@@ -316,36 +299,40 @@ async function loadMoreMessages() {
         };
         
         imageContainer.appendChild(img);
-        messageDiv.appendChild(imageContainer);
-        messageDiv.appendChild(imageContainer);
+        textBody.appendChild(imageContainer);
         
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
-        messageDiv.appendChild(timeDiv);
-        
-        appendMessage(messageDiv,history);
+        textBody.appendChild(timeDiv);
+        messageDiv.appendChild(textBody);
+        appendMessage(messageDiv);
     }
 
-    function displayAudio(content, type, timestamp, sender,history=false) {
+    function displayAudio(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
         senderDiv.textContent = sender || 'Anonymous';
         messageDiv.appendChild(senderDiv);
-        
+
+        const textBody = document.createElement('div');
+        textBody.className = 'message-text-body';
+
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.src = content;
-        messageDiv.appendChild(audio);
-        
+        textBody.appendChild(audio);
+
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
-        messageDiv.appendChild(timeDiv);
+        textBody.appendChild(timeDiv);
+
+        messageDiv.appendChild(textBody);
         
-        appendMessage(messageDiv,history);
+        appendMessage(messageDiv);
     }
 
     function displaySystemMessage(content, isError = false) {
@@ -353,27 +340,21 @@ async function loadMoreMessages() {
         messageDiv.className = `system-message ${isError ? 'error' : ''}`;
         messageDiv.textContent = content;
     }
-    function scrollToLatestMessage() {
-        chatBox.scrollTop = chatBox.scrollHeight;  // 将滚动条设置为最新消息的底部
-    }
     function createMessageElement(type) {
         const div = document.createElement('div');
         div.className = `message ${type}`;
         return div;
     }
 
-    function appendMessage(messageDiv, history=false) {
-        if (history) {
-            chatBox.insertBefore(messageDiv, chatBox.firstChild);
-            chatBox.scrollTop = 0;
-        } else {
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+    function appendMessage(messageDiv) {
+        chatBox.appendChild(messageDiv);
+        if (chatBox.children.length > 10) {
+            chatBox.removeChild(chatBox.firstChild); 
         }
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function showConnectionStatus(message, type) {
-        connectionStatus.textContent = message;
+    function showConnectionStatus(type) {
         connectionStatus.className = `connection-status ${type}`;
     }
 

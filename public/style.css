@@ -5,7 +5,12 @@ body {
     font-family: Arial, sans-serif;
     background-color: #f0f0f0;
 }
-
+.chat-head{
+    display: grid;
+    grid-template-columns: auto 1fr auto; 
+    background-color: #ccc;    
+    padding:8px 20px;
+}
 .chat-container {
     max-width: 800px;
     margin: 0 auto;
@@ -14,12 +19,15 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    height: 95vh;
+    height: 98vh;
+    border:1px solid black;
+    overflow: hidden;
 }
 
 #chat-box {
     flex: 1;
     overflow-y: auto;
+    position: relative;
     padding: 20px;
     display: flex;
     flex-direction: column;
@@ -46,9 +54,9 @@ body {
 #submit-file,
 .record-button {
     padding: 10px 20px;
-    background-color: #1a73e8;
-    color: white;
-    border: none;
+    background-color:white;
+    color: black;
+    border:1px solid black;
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s;
@@ -57,54 +65,105 @@ body {
 #submit-message:hover,
 #submit-file:hover,
 .record-button:hover {
-    background-color: #1557b0;
+    background-color:#ddd;
 }
 
 .record-button.recording {
-    background-color: #dc3545;
+    background-color:orange;
 }
 
 .record-button.recording:hover {
-    background-color: #c82333;
+    background-color:gold;
 }
 
 #file-input {
     display: none;
 }
 
+/* Message styling */
 .message {
-    padding: 10px;
-    border-radius: 8px;
-    max-width: 70%;
+    position: relative; /* 添加相对定位 */
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 8px 12px;
     word-wrap: break-word;
+    max-width: 70%; /* 消息宽度限制 */
+    box-sizing: border-box;
 }
 
 .sent {
     align-self: flex-end;
-    background: #007bff;
-    color: white;
+    color:black;
+    flex-direction: row-reverse;
 }
 
 .received {
     align-self: flex-start;
-    background: #e9ecef;
     color: black;
+    flex-direction: row;
 }
 
 .message-sender {
-    font-size: 12px;
-    margin-bottom: 4px;
-    font-weight: bold;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    position: absolute;
+    top: 10px;
+    border:1px solid black;
+    color:black;
 }
+
+.sent .message-sender {
+    right: -10px;
+}
+.received .message-sender {
+    left: -10px;
+}
+.message-text-body {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    padding: 8px 12px;
+    max-width: 100%;
+    border:1px solid black;
+}
+.sent .message-text-body{
+    margin-right: 30px;
+    background-color: #f0f0f0;
+}
+.received .message-text-body{
+    margin-left:30px;
+    background-color: #ccc;
+}
+
 
 .message-text {
     margin-bottom: 4px;
+    word-wrap: break-word;
+    max-width: 100%;
+    font-size: 14px;
 }
 
 .timestamp {
     font-size: 10px;
     opacity: 0.7;
     text-align: right;
+}
+
+.sent .timestamp {
+    text-align: right;
+}
+
+.received .timestamp {
+    text-align: left;
 }
 
 .message-image {
@@ -115,7 +174,7 @@ body {
 .system-message {
     text-align: center;
     color: #666;
-    font-style: italic;
+    font-size: 12px;
     padding: 5px;
 }
 
@@ -124,41 +183,41 @@ body {
 }
 
 .connection-status {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
+    margin-top: 5px;
+    width: 12px; 
+    height: 12px; 
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    background-color: grey;
+    transition: background-color 0.3s ease; 
 }
 
 .connection-status.connected {
     background: #28a745;
-    color: white;
 }
 
 .connection-status.disconnected {
-    background: #dc3545;
-    color: white;
+    background: #ffc107;
 }
 
 .connection-status.error {
-    background: #ffc107;
-    color: black;
+    background: #dc3545;
 }
 
 .send-image-btn {
     margin-left: 10px;
     background: #28a745;
 }
+
 /* Preview Container */
 .preview-container {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 80%; 
-    max-width: 600px;  
+    width: 80%;
+    max-width: 600px;
     background-color: rgba(0, 0, 0, 0.7);
     border-radius: 10px;
     padding: 20px;
@@ -167,20 +226,17 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    margin-top: 10px;  
 }
 
-/* Image Preview */
 .image-preview {
     border: 5px solid green;
-    width: 100%;  
-    height: auto; 
-    max-height: 80vh;  
-    object-fit: contain; 
-    flex-grow: 1;  
+    width: 100%;
+    height: auto;
+    max-height: 80vh;
+    object-fit: contain;
+    flex-grow: 1;
 }
 
-/* Button Container */
 .button-container {
     position: absolute;
     bottom: 20px;
@@ -190,7 +246,6 @@ body {
     display: flex;
     gap: 15px;
     justify-content: center;
-    width: auto; /* Adjust width to buttons' size */
 }
 
 .send-image-btn, .cancel-image-btn {
@@ -199,20 +254,17 @@ body {
     border: none;
     border-radius: 30px;
     color: white;
-    background: linear-gradient(45deg, #4CAF50, #8BC34A); /* Green gradient */
+    background: linear-gradient(45deg, #4CAF50, #8BC34A);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .send-image-btn:hover, .cancel-image-btn:hover {
-    background: linear-gradient(45deg, #8BC34A, #4CAF50); /* Reverse gradient on hover */
+    background: linear-gradient(45deg, #8BC34A, #4CAF50);
 }
 
-.send-image-btn:active, .cancel-image-btn:active {
-    transform: scale(0.98); /* Slight scale effect on click */
-}
 .cancel-image-btn {
-    background: linear-gradient(45deg, #f44336, #FF5722); /* Red gradient */
+    background: linear-gradient(45deg, #f44336, #FF5722);
 }
 
 .cancel-image-btn:hover {
@@ -230,12 +282,10 @@ body {
     z-index: 1000;
 }
 
-/* Image container for small preview */
 .image-container {
     margin: 10px 0;
 }
 
-/* Thumbnail preview for images */
 .chat-image.thumbnail {
     max-width: 200px;
     max-height: 200px;
@@ -243,7 +293,6 @@ body {
     border-radius: 4px;
 }
 
-/* Full image overlay when clicked */
 .full-image-overlay {
     position: fixed;
     top: 0;
@@ -264,7 +313,6 @@ body {
     object-fit: contain;
 }
 
-/* Audio player styling */
 audio {
     max-width: 100%;
     margin-top: 5px;
