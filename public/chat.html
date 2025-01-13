@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="无注册、仅十条">
-    <title>十条：匿名聊天室</title>
+    <title>十条：小而美的分享工具</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,9 +20,19 @@
             <button id = "submit-message">发送</button>
         </div>
         <div class="media-controls">
-            <button id="submit-file">发送图片</button>
+            <button id="submit-file">发图片</button>
             <input type="file" id="file-input" accept="image/*">
             <button id="record-audio" class="record-button">按住说话</button>
+            <button id="show-upload" class="show-upload">传文件</button>
+            <div class="upload-status" id="upload-status">
+                <input type="file" id="upload-file-input" />
+                <div id="statusText"></div>
+                <div id="uploadBtnContainer">
+                    <button id="uploadBtn">▶️</button>
+                    <button id="pauseBtn" disabled>⏸️</button>
+                    <button id="cancelBtn" disabled>❌</button>
+                </div>
+            </div>
         </div>
         <div class="overlay" id="overlay"></div>
     </div>

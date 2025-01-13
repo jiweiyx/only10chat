@@ -6,6 +6,14 @@
     let myID;
     let chatId;
 
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
+    let isPaused = false;
+    let currentUpload = null;
+    let lastUploadedChunk = 0;
+    let currentFileId = null;
+    let showUploadArea = false;
+
     const messageInput = document.getElementById('message-input');
     const submitButton = document.getElementById('submit-message');
     const chatBox = document.getElementById('chat-box');
@@ -13,6 +21,18 @@
     const submitFileButton = document.getElementById('submit-file');
     const recordButton = document.getElementById('record-audio');
     const connectionStatus = document.getElementById('connection-status');
+    const showUpload = document.getElementById('show-upload');
+    const uploadFileInput = document.getElementById('upload-file-input');
+    const uploadStatus = document.getElementById('upload-status');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const statusText = document.getElementById('statusText');
+    showUpload.addEventListener('click',displayUploadBar);
+    uploadBtn.addEventListener('click',uploadFile);
+    pauseBtn.addEventListener('click', togglePause);
+    cancelBtn.addEventListener('click', cancelUpload);
+
     // Event listeners for file input and preview
     fileInput.addEventListener('change', handleFileSelect);
     submitFileButton.addEventListener('click', () => {
@@ -380,6 +400,144 @@
         return date.toLocaleTimeString();
     }
 
+    function resetUploadState() {
+
+        currentUpload = null;
+        lastUploadedChunk = 0;
+        currentFileId = null;
+        isPaused = false;
+        
+        uploadFileInput.value = '';
+        uploadBtn.disabled = false;
+        pauseBtn.disabled = true;
+        cancelBtn.disabled = true;
+    }
+
+    async function cancelUpload() {
+        if (!currentFileId) return;
+
+        try {
+            const response = await fetch(`/upload/cancel/${currentFileId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Cancel request failed');
+            }
+
+            statusText.textContent = 'Upload cancelled';
+            resetUploadState();
+        } catch (error) {
+            console.error('Cancel error:', error);
+            statusText.textContent = `Cancel error: ${error.message}`;
+        }
+    }
+
+    function togglePause() {
+        isPaused = !isPaused;
+        
+        if (isPaused) {
+            pauseBtn.textContent = '⏩';
+            statusText.textContent += '⏸️';
+        } else {
+            pauseBtn.textContent = '⏸️';
+            statusText.textContent = statusText.textContent.replace(' (⏸️)', '');
+            if (currentUpload) {
+                continueUpload();
+            }
+        }
+    }
+
+    async function uploadFile() {
+        
+        const file = uploadFileInput.files[0];
+        if (!file) {
+            alert('Please select a file');
+            return;
+        }
+        // Add file size check at start of uploadFile function 
+        if (file.size > MAX_FILE_SIZE) {
+            alert('File size exceeds 1GB limit. Please select a smaller file.');
+        return;
+        }            
+        // Generate a unique file ID
+        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+
+        currentUpload = {
+            file: file,
+            uploadedSize: 0
+        };
+
+        lastUploadedChunk = 0;
+        isPaused = false;
+        
+        uploadBtn.disabled = true;
+        pauseBtn.disabled = false;
+        cancelBtn.disabled = false;
+        pauseBtn.textContent = '⏸️';
+        await continueUpload();
+    }
+
+    async function continueUpload() {
+        if (!currentUpload || !currentUpload.file) return;
+       
+        const file = currentUpload.file;
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+        try {
+            for (let chunkIndex = lastUploadedChunk; chunkIndex < totalChunks; chunkIndex++) {
+                if (isPaused) {
+                    lastUploadedChunk = chunkIndex;
+                    return;
+                }
+
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                        'Content-Range': `bytes ${start}-${end-1}/${file.size}`,
+                        'filename': file.name,
+                        'filesize': file.size.toString(),
+                        'X-File-Id': currentFileId
+                    },
+                    body: chunk
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
+                
+                const progress = (currentUpload.uploadedSize / file.size) * 100;
+                statusText.textContent = `Uploaded: ${Math.round(progress)}%`;
+
+                if (result.status === 'complete') {
+                    statusText.textContent = 'Upload complete!';
+                    resetUploadState();
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            statusText.textContent = `Error: ${error.message}`;
+            resetUploadState();
+        }
+    }
+    function displayUploadBar(){
+        if(showUploadArea){
+            uploadStatus.style.display = 'none';
+            showUploadArea = false;
+        }else{
+            uploadStatus.style.display = 'block';
+            showUploadArea = true;
+        }
+    }
     // Initialize connection
     connect();
 })();

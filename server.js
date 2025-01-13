@@ -3,6 +3,8 @@ const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const express = require('express');
 const path = require('path');
+const uploadRouter = require('./upload');
+
 const app = express();
 const crc32 = require('crc-32');
 const server = http.createServer(app);
@@ -46,6 +48,8 @@ app.get('/chat', (req, res) => {
     });
 });
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use('/upload', uploadRouter);  // 挂载路由
 
 // WebSocket server
 wss.on('connection', (ws, req) => { 
