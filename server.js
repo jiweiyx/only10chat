@@ -20,6 +20,7 @@ let dbCollection = null;
 
 const MessageType = {
     TEXT: 'text',
+    FILE: 'file',
     IMAGE: 'image',
     AUDIO: 'audio',
     SYSTEM: 'system',
@@ -140,27 +141,46 @@ async function connectToDB() {
     }
 }
 
+const fs = require('fs').promises; // 引入 fs 模块
+
 async function insertChat(newChat) {
     try {
         const { collection } = await connectToDB();
-        if (!newChat.content || !newChat.chatId || !newChat.senderId){
+
+        // 验证新聊天数据是否有效
+        if (!newChat.content || !newChat.chatId || !newChat.senderId) {
             throw new Error('Invalid chat data');
         }
         newChat.content = newChat.content.trim();
 
-        // Insert the new chat
+        // 插入新聊天记录
         const result = await collection.insertOne(newChat);
 
-        // Use bulk operations for cleanup
+        // 检查是否需要清理旧消息
         if (await collection.countDocuments({ chatId: newChat.chatId }) > 10) {
             const oldestMessages = await collection
                 .find({ chatId: newChat.chatId })
                 .sort({ _id: 1 })
                 .limit(1)
                 .toArray();
-                
+
             if (oldestMessages.length > 0) {
-                await collection.deleteOne({ _id: oldestMessages[0]._id });
+                const oldestMessage = oldestMessages[0];
+
+                // 如果类型是 file，删除文件
+                if ((oldestMessage.type === 'file')) {
+                    const fileName = path.basename(oldestMessage.content); // 提取文件名
+                    const filePath = path.join(__dirname, 'public', 'upload', fileName);
+                    try {
+                        await fs.unlink(filePath); // 删除文件
+                        console.log(`File deleted: ${filePath}`);
+                    } catch (fileErr) {
+                        console.error(`Failed to delete file: ${filePath}`, fileErr);
+                    }
+                }
+
+                // 删除旧的数据库记录
+                await collection.deleteOne({ _id: oldestMessage._id });
             }
         }
 
@@ -170,6 +190,7 @@ async function insertChat(newChat) {
         throw err;
     }
 }
+
 
 async function showHistory(chatId) {
     try {
@@ -222,6 +243,7 @@ function handleMessage(ws, message, clientInfo) {
         chatId = parsedMessage.chatId;
         // Handle different message types
         switch (parsedMessage.type) {
+            case MessageType.FILE:
             case MessageType.TEXT:
                 broadcast(chatId,{
                     type: MessageType.TEXT,

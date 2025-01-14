@@ -78,7 +78,7 @@
             mediaRecorder.start(10); // Start recording with 10ms timeslice for smoother chunks
             isRecording = true;
             recordButton.classList.add('recording');
-            recordButton.textContent = "正在录音，点击发送";
+            recordButton.textContent = "发出";
             // 设置最大录音时间为 60 秒
             recordingTimeout = setTimeout(() => {
                 if (isRecording) {
@@ -90,7 +90,7 @@
             displaySystemMessage('Could not access microphone', true);
             isRecording = false;
             recordButton.classList.remove('recording');
-            recordButton.textContent = "按住说话";
+            recordButton.textContent = "录音";
         }
     }
 
@@ -100,7 +100,7 @@
             mediaRecorder.stop();
             clearTimeout(recordingTimeout);
             recordButton.classList.remove('recording');
-            recordButton.textContent = "按住说话";
+            recordButton.textContent = "语音";
             isRecording = false;
     }
     function toggleRecording(e){
@@ -201,38 +201,51 @@
     
     function handleMessage(message) {
         try {
+            const isImage = (content) =>
+                typeof content === 'string' && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(content);
+            const isMp4 = (content) =>
+                typeof content === 'string' && content.toLowerCase().endsWith('.mp4');
+    
+            const senderType = message.senderId === myID ? 'sent' : 'received';
+    
             switch (message.type) {
+                case 'file':
+                    if (isImage(message.content)) {
+                        displayImage(message.content, senderType, message.timestamp, message.senderId);
+                    } else if (isMp4(message.content)) {
+                        displayVideo(message.content, senderType, message.timestamp, message.senderId);
+                    } else {
+                        displayMessage(message.content, senderType, message.timestamp, message.senderId);
+                    }
+                    break;
+    
                 case 'text':
-                    if (message.senderId == myID){
-                        console.log("Received text message:", message.content);
-                        displayMessage(message.content, 'sent', message.timestamp, message.senderId);
-                    }else{
-                        displayMessage(message.content, 'received', message.timestamp, message.senderId);
-                    }
+                    console.log("Received text message:", message.content);
+                    displayMessage(message.content, senderType, message.timestamp, message.senderId);
                     break;
+    
                 case 'image':
-                    if (message.senderId == myID){
-                        displayImage(message.content, 'sent', message.timestamp, message.senderId);
-                    }else{
-                        displayImage(message.content, 'received', message.timestamp, message.senderId);
-                    }
+                    displayImage(message.content, senderType, message.timestamp, message.senderId);
                     break;
+    
                 case 'audio':
-                    if (message.senderId == myID){
-                        displayAudio(message.content, 'sent', message.timestamp, message.senderId);
-                    }else{
-                        displayAudio(message.content, 'received', message.timestamp, message.senderId);
-                    }
+                    displayAudio(message.content, senderType, message.timestamp, message.senderId);
                     break;
+    
                 case 'system':
                     if (message.content.startsWith('YourID')) {
                         myID = message.content.split(':')[1].trim();
-                        console.log('Received MyID',myID);
+                        console.log('Received MyID:', myID);
                     }
                     displaySystemMessage(message.content, false);
                     break;
+    
                 case 'error':
                     displaySystemMessage(message.content, true);
+                    break;
+    
+                default:
+                    console.warn(`Unknown message type: ${message.type}`);
                     break;
             }
         } catch (error) {
@@ -240,6 +253,7 @@
             displaySystemMessage('Error displaying message', true);
         }
     }
+    
     
     function sendMessage(content, type = 'text') {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -257,12 +271,28 @@
 
         socket.send(JSON.stringify(message));
         
-        if (type === 'text') {
-            displayMessage(content, 'sent', message.timestamp, myID);
-        } else if (type === 'image') {
-            displayImage(content, 'sent', message.timestamp, myID);
-        } else if (type === 'audio') {
-            displayAudio(content, 'sent', message.timestamp, myID);
+        switch(type){
+            case 'file':
+                const isImage = (content) => typeof content === 'string' && content.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) !== null;
+                const isMp4 = (content) => typeof content === 'string' && content.toLowerCase().endsWith('.mp4');
+
+                if (isImage(content)) {
+                    displayImage(content, 'sent', message.timestamp, myID);
+                } else if (isMp4(content)) {
+                    displayVideo(content, 'sent', message.timestamp, myID);
+                } else {
+                    displayMessage(content, 'sent', message.timestamp, myID);
+                }
+                break;            
+            case 'text':
+                displayMessage(content, 'sent', message.timestamp, myID);
+                break;
+            case 'image':
+                displayImage(content, 'sent', message.timestamp, myID);
+                break;
+            case 'audio':
+                displayAudio(content, 'sent', message.timestamp, myID);
+                break;
         }
     }
 
@@ -367,7 +397,57 @@
         
         appendMessage(messageDiv);
     }
-
+    function displayVideo(content, type, timestamp, sender) {
+        const messageDiv = createMessageElement(type);
+    
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'message-sender';
+        senderDiv.textContent = sender || 'Anonymous';
+        messageDiv.appendChild(senderDiv);
+    
+        const textBody = document.createElement('div');
+        textBody.className = 'message-text-body';
+    
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'video-container';
+    
+        const video = document.createElement('video');
+        video.src = content;
+        video.className = 'chat-video thumbnail';
+        video.controls = true; // 添加视频控制按钮
+        video.onloadeddata = () => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+    
+        video.onclick = () => {
+            const fullVideo = document.createElement('div');
+            fullVideo.className = 'full-video-overlay';
+            fullVideo.onclick = () => fullVideo.remove();
+    
+            const videoFull = document.createElement('video');
+            videoFull.src = content;
+            videoFull.className = 'full-video';
+            videoFull.controls = true;
+    
+            fullVideo.appendChild(videoFull);
+            document.body.appendChild(fullVideo);
+    
+            // 自动播放全屏视频
+            videoFull.play();
+        };
+    
+        videoContainer.appendChild(video);
+        textBody.appendChild(videoContainer);
+    
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'timestamp';
+        timeDiv.textContent = formatTimestamp(timestamp);
+        textBody.appendChild(timeDiv);
+        messageDiv.appendChild(textBody);
+    
+        appendMessage(messageDiv);
+    }
+    
     function displaySystemMessage(content, isError = false) {
         const messageDiv = document.getElementById('systemDiv');
         messageDiv.className = `system-message ${isError ? 'error' : ''}`;
@@ -387,6 +467,10 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
     function escapeHtml(unsafe) {
+        if (/^https?:\/\/[^\s]+$/.test(unsafe)) {
+            const escapedUrl = unsafe.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+            return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>`;
+        }    
         return unsafe
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -394,6 +478,7 @@
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
+    
 
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
@@ -425,11 +510,11 @@
                 throw new Error('Cancel request failed');
             }
 
-            statusText.textContent = 'Upload cancelled';
+            statusText.textContent = '传输取消';
             resetUploadState();
         } catch (error) {
             console.error('Cancel error:', error);
-            statusText.textContent = `Cancel error: ${error.message}`;
+            statusText.textContent = `取消出错: ${error.message}`;
         }
     }
 
@@ -438,10 +523,8 @@
         
         if (isPaused) {
             pauseBtn.textContent = '⏩';
-            statusText.textContent += '⏸️';
         } else {
             pauseBtn.textContent = '⏸️';
-            statusText.textContent = statusText.textContent.replace(' (⏸️)', '');
             if (currentUpload) {
                 continueUpload();
             }
@@ -452,17 +535,16 @@
         
         const file = uploadFileInput.files[0];
         if (!file) {
-            alert('Please select a file');
+            alert('请先选择一个文件');
             return;
         }
         // Add file size check at start of uploadFile function 
         if (file.size > MAX_FILE_SIZE) {
-            alert('File size exceeds 1GB limit. Please select a smaller file.');
+            alert('文件太大了,都超过了1个G,选个小点的.');
         return;
-        }            
+        }           
         // Generate a unique file ID
-        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
-
+        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11);
         currentUpload = {
             file: file,
             uploadedSize: 0
@@ -482,6 +564,8 @@
         if (!currentUpload || !currentUpload.file) return;
        
         const file = currentUpload.file;
+        const encodedFileName = encodeURIComponent(file.name); 
+        
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
         try {
@@ -500,7 +584,7 @@
                     headers: {
                         'Content-Type': 'application/octet-stream',
                         'Content-Range': `bytes ${start}-${end-1}/${file.size}`,
-                        'filename': file.name,
+                        'filename': encodedFileName,
                         'filesize': file.size.toString(),
                         'X-File-Id': currentFileId
                     },
@@ -508,33 +592,41 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+                    throw new Error(`上传出错: ${response.status} ${response.statusText}`);
                 }
 
                 const result = await response.json();
                 currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
                 
                 const progress = (currentUpload.uploadedSize / file.size) * 100;
-                statusText.textContent = `Uploaded: ${Math.round(progress)}%`;
+                statusText.textContent = `${progress.toFixed(2)}%`;
 
                 if (result.status === 'complete') {
-                    statusText.textContent = 'Upload complete!';
+
+                    statusText.textContent = ``;
+                    fullUrl = window.location.protocol + '//' + window.location.host + result.link;
+                    sendMessage(fullUrl,'file');
                     resetUploadState();
+                    showUpload.style.backgroundColor = 'white';
+                    showUploadArea = false;
+                    uploadStatus.style.display = 'none';
                     break;
                 }
             }
         } catch (error) {
-            console.error('Upload error:', error);
-            statusText.textContent = `Error: ${error.message}`;
+            console.error('上传出错:', error);
+            statusText.textContent = `错误: ${error.message}`;
             resetUploadState();
         }
     }
     function displayUploadBar(){
         if(showUploadArea){
             uploadStatus.style.display = 'none';
+            showUpload.style.backgroundColor = 'white';
             showUploadArea = false;
         }else{
-            uploadStatus.style.display = 'block';
+            uploadStatus.style.display = 'flex';
+            showUpload.style.backgroundColor ='#8BC34A';
             showUploadArea = true;
         }
     }

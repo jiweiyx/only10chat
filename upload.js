@@ -46,7 +46,7 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
 
 uploadRouter.post('/', async (req, res) => {
     try {
-        const filename = req.headers['filename'];
+        const filename = decodeURIComponent(req.headers['filename']);
         const filesize = parseInt(req.headers['filesize']);
         const contentRange = req.headers['content-range'];
         const fileId = req.headers['x-file-id'];

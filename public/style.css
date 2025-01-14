@@ -22,7 +22,8 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    height: 98vh;
+    height: calc(100vh - 50px);
+    min-height: 85vh; 
     border:1px solid black;
     overflow: hidden;
 }
@@ -328,21 +329,60 @@ audio {
     max-width: 100%;
     margin-top: 5px;
 }
-.upload-status{
+.upload-status {
     font-size: 14px;
     display: none;
-    border: 1px solid red;
-    width:60%;
-    display: grid;
-    grid-template-columns: 150px 1fr 150px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    background-color: #8BC34A;
+    color: whitesmoke;
     overflow: hidden;
+    gap: 10px; 
 }
-.upload-status span{
-    padding-right:3px;
-    font-size:18px;
-    border: 1px solid black;
+
+#upload-file-input {
+    flex: 0;
+    width:120px; 
 }
+#uploadBtnContainer{
+    flex: 0;
+    white-space: nowrap;
+}
+#statusText {
+    flex: 1; 
+    min-width: 50px;
+}
+
 button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+}
+
+.video-container {
+    max-width: 100%;
+    display: inline-block;
+    position: relative;
+}
+
+.chat-video {
+    max-width: 100%;
+    height: auto;
+}
+
+.full-video-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.full-video {
+    max-width: 80%;
+    max-height: 80%;
 }
