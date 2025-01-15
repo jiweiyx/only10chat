@@ -1,4 +1,3 @@
-```markdown
 # PrivateChat 项目
 
 ## 项目背景
@@ -95,5 +94,3 @@ PrivateChat 采用前后端分离的设计，前端通过浏览器与后端服�
 ## License
 
 本项目采用 MIT 开源协议，详见 [LICENSE](./LICENSE) 文件。
-
-```
