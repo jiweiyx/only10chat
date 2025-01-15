@@ -8,6 +8,7 @@
 
     const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
     const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
+    const MAX_IMAGE_SIZE = 3 * 1024 * 1024; //5Mb 
     let isPaused = false;
     let currentUpload = null;
     let lastUploadedChunk = 0;
@@ -86,8 +87,7 @@
                 }
             }, 60000);  // 60秒
         } catch (err) {
-            console.error('Error accessing microphone:', err);
-            displaySystemMessage('Could not access microphone', true);
+            displaySystemMessage('没得到麦克风使用权限', true);
             isRecording = false;
             recordButton.classList.remove('recording');
             recordButton.textContent = "录音";
@@ -112,6 +112,11 @@
     }
     function handleFileSelect(event) {
         const file = event.target.files[0];
+        if (file.size > MAX_IMAGE_SIZE) {
+            displaySystemMessage('图片超过3兆, 建议你使用可以断点续传的文件按钮来上传', true);
+            fileInput.value = '';
+            return;
+        }
         if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -173,7 +178,7 @@
 
     function connect() {
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            displaySystemMessage('Maximum reconnection attempts reached', true);
+            displaySystemMessage('重联多次没有成功,已停止.', true);
             return;
         }
         const urlParams = new URLSearchParams(window.location.search);
@@ -220,7 +225,6 @@
                     break;
     
                 case 'text':
-                    console.log("Received text message:", message.content);
                     displayMessage(message.content, senderType, message.timestamp, message.senderId);
                     break;
     
@@ -235,7 +239,6 @@
                 case 'system':
                     if (message.content.startsWith('YourID')) {
                         myID = message.content.split(':')[1].trim();
-                        console.log('Received MyID:', myID);
                     }
                     displaySystemMessage(message.content, false);
                     break;
@@ -245,12 +248,11 @@
                     break;
     
                 default:
-                    console.warn(`Unknown message type: ${message.type}`);
+                    displaySystemMessage(`消息类型不支持：${message.type}`, true);
                     break;
             }
         } catch (error) {
-            console.error('Error parsing message:', error);
-            displaySystemMessage('Error displaying message', true);
+            displaySystemMessage('显示消息出错', true);
         }
     }
     
@@ -513,7 +515,6 @@
             statusText.textContent = '传输取消';
             resetUploadState();
         } catch (error) {
-            console.error('Cancel error:', error);
             statusText.textContent = `取消出错: ${error.message}`;
         }
     }
@@ -535,12 +536,12 @@
         
         const file = uploadFileInput.files[0];
         if (!file) {
-            alert('请先选择一个文件');
+            displaySystemMessage('请选择一个文件', true);
             return;
         }
         // Add file size check at start of uploadFile function 
         if (file.size > MAX_FILE_SIZE) {
-            alert('文件太大了,都超过了1个G,选个小点的.');
+            displaySystemMessage('文件太大了, 都超过了1个G, 选个小点的.', true);
         return;
         }           
         // Generate a unique file ID
@@ -614,7 +615,6 @@
                 }
             }
         } catch (error) {
-            console.error('上传出错:', error);
             statusText.textContent = `错误: ${error.message}`;
             resetUploadState();
         }

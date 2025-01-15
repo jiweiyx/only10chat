@@ -11,6 +11,8 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const { MongoClient, ObjectId } = require('mongodb');
 const { clear } = require('console');
+const fs = require('fs').promises; // 引入 fs 模块
+
 // MongoDB 连接配置
 const url = 'mongodb://localhost:27017';
 const dbName = 'chatdb';  // 使用 'chatDb' 数据库
@@ -141,7 +143,6 @@ async function connectToDB() {
     }
 }
 
-const fs = require('fs').promises; // 引入 fs 模块
 
 async function insertChat(newChat) {
     try {
