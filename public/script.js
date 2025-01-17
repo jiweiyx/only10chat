@@ -371,54 +371,62 @@
         }
         appendMessage(messageDiv);
     }
-    function displayImage(content, type, timestamp, sender,localUploadId='null') {
+    function displayImage(content, type, timestamp, sender, localUploadId = 'null') {
         const messageDiv = createMessageElement(type);
-        
+    
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
         senderDiv.textContent = sender || 'Anonymous';
         messageDiv.appendChild(senderDiv);
-
+    
         const textBody = document.createElement('div');
         textBody.className = 'message-text-body';
-        
+    
         const imageContainer = document.createElement('div');
         imageContainer.className = 'image-container';
-        
+    
         const img = document.createElement('img');
         img.src = content;
-        img.className = 'chat-image thumbnail';
+        img.className = 'chat-image thumbnail';    
         img.onload = () => {
+            imageContainer.appendChild(img); 
             chatBox.scrollTop = chatBox.scrollHeight;
         };
+    
+        img.onerror = () => {
+            img.alt = 'Image failed to load'; 
+            imageContainer.appendChild(img);
+        };
+    
         img.onclick = () => {
             const fullImage = document.createElement('div');
             fullImage.className = 'full-image-overlay';
             fullImage.onclick = () => fullImage.remove();
-            
+    
             const imgFull = document.createElement('img');
             imgFull.src = content;
             imgFull.className = 'full-image';
-            
+    
             fullImage.appendChild(imgFull);
             document.body.appendChild(fullImage);
         };
-        
-        imageContainer.appendChild(img);
-        textBody.appendChild(imageContainer);
-        
+       textBody.appendChild(imageContainer);
+    
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
+    
         messageDiv.appendChild(textBody);
+    
         if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
+    
         appendMessage(messageDiv);
-    }
+    }    
     function displayAudio(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
