@@ -23,7 +23,6 @@
     const recordButton = document.getElementById('record-audio');
     const connectionStatus = document.getElementById('connection-status');
     const submitFileButton = document.getElementById('submit-file');
-    const statusText = document.getElementById('statusText');
     //绑定事件
     submitButton.addEventListener('click', handleTextSubmit);
     recordButton.addEventListener('click', toggleRecording);  
@@ -57,7 +56,16 @@
     }
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
-        return date.toLocaleTimeString();
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // 补齐两位
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
     function generateLocalUploadId() {
         return `upload_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -326,8 +334,7 @@
         buttonContainer.appendChild(cancelButton);
         progressContainer.appendChild(buttonContainer);
         containerDiv.appendChild(progressContainer);
-    }
-    
+    }  
     function displayMessage(content, type, timestamp, sender,localUploadId='null') {
         const messageDiv = createMessageElement(type);
         const senderDiv = document.createElement('div');
@@ -508,7 +515,6 @@
         }
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-
     async function handleCancel(localUploadId,progressBar) {
         if (!currentFileId.get(localUploadId)) return;
         isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
