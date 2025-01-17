@@ -10,36 +10,30 @@
     let isRecording = false;
     let myID;
     let chatId;
-    let isPaused = false;
-    let currentUpload = null;
-    let lastUploadedChunk = 0;
-    let currentFileId = null;
-    let showUploadArea = false;
+    const isPaused = new Map();
+    let lastUploadedChunk = new Map();
+    let currentFileId = new Map();
     let reconnectAttempts = 0;
    //获取界面操作button
     const messageInput = document.getElementById('message-input');
     const submitButton = document.getElementById('submit-message');
     const chatBox = document.getElementById('chat-box');
     const fileInput = document.getElementById('file-input');
-    const submitFileButton = document.getElementById('submit-file');
+    const submitImageButton = document.getElementById('submit-image');
     const recordButton = document.getElementById('record-audio');
     const connectionStatus = document.getElementById('connection-status');
-    const showUpload = document.getElementById('show-upload');
-    const uploadFileInput = document.getElementById('upload-file-input');
-    const uploadStatus = document.getElementById('upload-status');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
+    const submitFileButton = document.getElementById('submit-file');
     const statusText = document.getElementById('statusText');
     //绑定事件
-    showUpload.addEventListener('click',displayUploadBar);
-    uploadBtn.addEventListener('click',uploadFile);
-    pauseBtn.addEventListener('click', togglePause);
-    cancelBtn.addEventListener('click', cancelUpload);
     submitButton.addEventListener('click', handleTextSubmit);
     recordButton.addEventListener('click', toggleRecording);  
     fileInput.addEventListener('change', handleFileSelect);
+    submitImageButton.addEventListener('click', () => {
+        fileInput.accept = 'image/*';
+        fileInput.click();
+    });
     submitFileButton.addEventListener('click', () => {
+        fileInput.accept = '';
         fileInput.click();
     });
     messageInput.addEventListener('keypress', (e) => {
@@ -49,6 +43,25 @@
         }
     });
     //定义各函数
+    function escapeHtml(unsafe) {
+        if (/^https?:\/\/[^\s]+$/.test(unsafe)) {
+            const escapedUrl = unsafe.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+            return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>`;
+        }    
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString();
+    }
+    function generateLocalUploadId() {
+        return `upload_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    }  
     async function startRecording(e) {
         if (e) e.preventDefault();
         if (isRecording) return;
@@ -120,67 +133,45 @@
             fileInput.value = '';
             return;
         }
-    
+        let fileType;
         if (file.type.startsWith('image/')) {
-            // 创建预览元素
-            const previewContainer = document.createElement('div');
-            previewContainer.className = 'preview-container';
-    
-            const imagePreview = document.createElement('img');
-            imagePreview.src = URL.createObjectURL(file);
-            imagePreview.className = 'image-preview';
-    
-            const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'button-container';
-    
-            const sendImageBtn = document.createElement('button');
-            sendImageBtn.textContent = '发送';
-            sendImageBtn.className = 'send-image-btn';
-    
-            const cancelImageBtn = document.createElement('button');
-            cancelImageBtn.textContent = '取消';
-            cancelImageBtn.className = 'cancel-image-btn';
-    
-            // 追加元素
-            previewContainer.appendChild(imagePreview);
-            buttonContainer.appendChild(sendImageBtn);
-            buttonContainer.appendChild(cancelImageBtn);
-            previewContainer.appendChild(buttonContainer);
-            document.body.appendChild(previewContainer);
-    
-            // 取消按钮功能
-            cancelImageBtn.onclick = () => {
-                previewContainer.remove();
-                fileInput.value = '';
-            };
-            
-            // 发送按钮功能
-            sendImageBtn.onclick = () => {
-                previewContainer.remove();
-                fileInput.value = '';
-                displaySystemMessage('图片正在后台上传',false);
-
-                // 启动后台上传
-                uploadFileInBackground(file);
-
-                //显示发送消息
-                displayImage(URL.createObjectURL(file), 'sent', new Date().toISOString(), myID);
-            };
+            fileType = 'image';
+        } else if (file.type.startsWith('video/')) {
+            fileType = 'video';
+        } else {
+            fileType = 'file';
         }
-    }
-    async function uploadFileInBackground(file) {
-        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11);
-        currentUpload = { file, uploadedSize: 0 };
-        lastUploadedChunk = 0;
-        isPaused = false;
+        let localUploadId = generateLocalUploadId(); // 生成本地唯一上传编号
+        lastUploadedChunk.set(localUploadId,0);
+        currentFileId.set(localUploadId, file);
+        let fileUrl = URL.createObjectURL(file);
+        switch (fileType) {
+        case 'image':
+            displayImage(fileUrl, 'sent', new Date().toISOString(), myID, localUploadId);
+            break;
+        case 'video':
+            displayVideo(fileUrl, 'sent', new Date().toISOString(), myID, localUploadId);
+            break;
 
-                
-    
+        case 'file':
+            displayMessage(`文件${file.name}`, 'sent', new Date().toISOString(), myID, localUploadId);
+            break;
+    }
+    uploadFileInBackground(localUploadId);        
+    }
+    async function uploadFileInBackground(localUploadId) {
+        file = currentFileId.get(localUploadId);
+        const currentUpload = { file, uploadedSize: 0 };
+        const encodedFileName = encodeURIComponent(file.name);
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);       
+        const progressDisplayBar = document.getElementById(localUploadId);
+        isPaused.set(localUploadId,false);
         try {
-            const encodedFileName = encodeURIComponent(file.name);
-            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    
-            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            for (let chunkIndex = lastUploadedChunk.get(localUploadId); chunkIndex < totalChunks; chunkIndex++) {
+                if (isPaused.get(localUploadId)) {
+                    lastUploadedChunk.set(localUploadId, chunkIndex);
+                    return;
+                }
                 const start = chunkIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
@@ -192,7 +183,7 @@
                         'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
                         'filename': encodedFileName,
                         'filesize': file.size.toString(),
-                        'X-File-Id': currentFileId,
+                        'X-File-Id': localUploadId,
                     },
                     body: chunk,
                 });
@@ -204,21 +195,31 @@
                 const result = await response.json();
                 currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
                 const progress = (currentUpload.uploadedSize / file.size) * 100;
-                displaySystemMessage(`图片正在上传: ${progress.toFixed(2)}%`, false);
-    
+                // 更新进度条显示
+                const progressContainer = progressDisplayBar?.parentElement;
+                
+                if (progressDisplayBar) {
+                    progressDisplayBar.style.width = `${progress}%`;
+                }
                 if (result.status === 'complete') {
-                    displaySystemMessage('图片上传完成！', false);
-                    fullUrl = window.location.protocol + '//' + window.location.host + result.link;
-                    sendMessage(fullUrl,'image');
-                    break;
+                    // 上传完成后的处理
+                    progressContainer.remove(); 
+                    const fullUrl = window.location.protocol + '//' + window.location.host + result.link;
+                    sendMessage(fullUrl, 'file');
+                    isPaused.delete(uploadFileId);
+                    lastUploadedChunk.delete(localUploadId);
                 }
             }
         } catch (error) {
-            displaySystemMessage(`后台上传失败: ${error.message}`, true);
+            // 错误处理：显示文件上传失败消息
+            displaySystemMessage(`文件上传失败: ${error.message}`, true);
+            if (progressDisplayBar) {
+                progressDisplayBar.textContent = '上传失败';
+            }
         } finally {
-            resetUploadState();
+            // 在上传完成后清理状态
         }
-    }  
+    }     
     function handleTextSubmit() {
         const content = messageInput.value.trim();
         if (content) {
@@ -294,18 +295,6 @@
         socket.send(JSON.stringify(message));
         
         switch(type){
-            case 'file':
-                const isImage = (content) => typeof content === 'string' && content.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) !== null;
-                const isMp4 = (content) => typeof content === 'string' && content.toLowerCase().endsWith('.mp4');
-
-                if (isImage(content)) {
-                    displayImage(content, 'sent', message.timestamp, myID);
-                } else if (isMp4(content)) {
-                    displayVideo(content, 'sent', message.timestamp, myID);
-                } else {
-                    displayMessage(content, 'sent', message.timestamp, myID);
-                }
-                break;            
             case 'text':
                 displayMessage(content, 'sent', message.timestamp, myID);
                 break;
@@ -314,7 +303,30 @@
                 break;
         }
     }
-    function displayMessage(content, type, timestamp, sender) {
+    function displayUploadProgressBar(uploadID, containerDiv) {
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-container';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        progressBar.id = uploadID;
+        progressContainer.appendChild(progressBar);
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'progress-button-container';
+        const pauseButton = document.createElement('button');
+        pauseButton.className = 'progress-button pause-button';
+        pauseButton.textContent = '暂停';
+        pauseButton.onclick = () => handlePause(uploadID,pauseButton);
+        buttonContainer.appendChild(pauseButton);
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'progress-button cancel-button';
+        cancelButton.textContent = '取消';
+        cancelButton.onclick = () => handleCancel(uploadID, progressContainer);
+        buttonContainer.appendChild(cancelButton);
+        progressContainer.appendChild(buttonContainer);
+        containerDiv.appendChild(progressContainer);
+    }
+    
+    function displayMessage(content, type, timestamp, sender,uploadFileId='null') {
         const messageDiv = createMessageElement(type);
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
@@ -343,9 +355,14 @@
         textBody.appendChild(timeDiv);
 
         messageDiv.appendChild(textBody);
+        if (type === 'sent' && uploadFileId !== 'null')  {
+            const uploadStatus = document.createElement('div');
+            displayUploadProgressBar(uploadFileId, uploadStatus);
+            textBody.appendChild(uploadStatus);
+        }
         appendMessage(messageDiv);
     }
-    function displayImage(content, type, timestamp, sender) {
+    function displayImage(content, type, timestamp, sender,uploadFileId='null') {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
@@ -386,6 +403,11 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
         messageDiv.appendChild(textBody);
+        if (type === 'sent' && uploadFileId !== 'null') {
+            const uploadStatus = document.createElement('div');
+            displayUploadProgressBar(uploadFileId, uploadStatus);
+            textBody.appendChild(uploadStatus);
+        }
         appendMessage(messageDiv);
     }
     function displayAudio(content, type, timestamp, sender) {
@@ -413,7 +435,7 @@
         
         appendMessage(messageDiv);
     }
-    function displayVideo(content, type, timestamp, sender) {
+    function displayVideo(content, type, timestamp, sender,uploadFileId='null') {
         const messageDiv = createMessageElement(type);
     
         const senderDiv = document.createElement('div');
@@ -460,7 +482,11 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
         messageDiv.appendChild(textBody);
-    
+        if (type === 'sent' && uploadFileId !== 'null') {
+            const uploadStatus = document.createElement('div');
+            displayUploadProgressBar(uploadFileId, uploadStatus);
+            textBody.appendChild(uploadStatus);
+        }
         appendMessage(messageDiv);
     }
     function displaySystemMessage(content, isError = false) {
@@ -480,159 +506,33 @@
         }
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-    function escapeHtml(unsafe) {
-        if (/^https?:\/\/[^\s]+$/.test(unsafe)) {
-            const escapedUrl = unsafe.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-            return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>`;
-        }    
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-    function formatTimestamp(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString();
-    }
-    function resetUploadState() {
 
-        currentUpload = null;
-        lastUploadedChunk = 0;
-        currentFileId = null;
-        isPaused = false;
-        
-        uploadFileInput.value = '';
-        uploadBtn.disabled = false;
-        pauseBtn.disabled = true;
-        cancelBtn.disabled = true;
-    }
-    async function cancelUpload() {
-        if (!currentFileId) return;
-
+    async function handleCancel(localUploadId,progressBar) {
+        if (!currentFileId.get(localUploadId)) return;
+        isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
         try {
-            const response = await fetch(`/upload/cancel/${currentFileId}`, {
+            const response = await fetch(`/upload/cancel/${localUploadId}`, {
                 method: 'DELETE'
             });
 
             if (!response.ok) {
-                throw new Error('Cancel request failed');
+                throw new Error('取消上传失败');
+            }else{
+                progressBar.parentElement.parentElement.parentElement.remove();
+                displaySystemMessage('取消上传成功', false);
             }
-
-            statusText.textContent = '传输取消';
-            resetUploadState();
         } catch (error) {
-            statusText.textContent = `取消出错: ${error.message}`;
+            displaySystemMessage(`取消上传失败: ${error.message}`, true);
         }
     }
-    function togglePause() {
-        isPaused = !isPaused;
-        
-        if (isPaused) {
-            pauseBtn.textContent = '⏩';
+    async function handlePause(localUploadId,button) {
+        isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
+    
+        if (isPaused.get(localUploadId)) {
+            button.textContent="继续";
         } else {
-            pauseBtn.textContent = '⏸️';
-            if (currentUpload) {
-                continueUpload();
-            }
-        }
-    }
-    async function uploadFile() {
-        
-        const file = uploadFileInput.files[0];
-        if (!file) {
-            displaySystemMessage('请选择一个文件', true);
-            return;
-        }
-        // Add file size check at start of uploadFile function 
-        if (file.size > MAX_FILE_SIZE) {
-            displaySystemMessage('文件太大了, 都超过了1个G, 选个小点的.', true);
-        return;
-        }           
-        // Generate a unique file ID
-        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11);
-        currentUpload = {
-            file: file,
-            uploadedSize: 0
-        };
-
-        lastUploadedChunk = 0;
-        isPaused = false;
-        
-        uploadBtn.disabled = true;
-        pauseBtn.disabled = false;
-        cancelBtn.disabled = false;
-        pauseBtn.textContent = '⏸️';
-        await continueUpload();
-    }
-    async function continueUpload() {
-        if (!currentUpload || !currentUpload.file) return;
-       
-        const file = currentUpload.file;
-        const encodedFileName = encodeURIComponent(file.name); 
-        
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-
-        try {
-            for (let chunkIndex = lastUploadedChunk; chunkIndex < totalChunks; chunkIndex++) {
-                if (isPaused) {
-                    lastUploadedChunk = chunkIndex;
-                    return;
-                }
-
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, file.size);
-                const chunk = file.slice(start, end);
-
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/octet-stream',
-                        'Content-Range': `bytes ${start}-${end-1}/${file.size}`,
-                        'filename': encodedFileName,
-                        'filesize': file.size.toString(),
-                        'X-File-Id': currentFileId
-                    },
-                    body: chunk
-                });
-
-                if (!response.ok) {
-                    throw new Error(`上传出错: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
-                
-                const progress = (currentUpload.uploadedSize / file.size) * 100;
-                statusText.textContent = `${progress.toFixed(2)}%`;
-
-                if (result.status === 'complete') {
-
-                    statusText.textContent = ``;
-                    fullUrl = window.location.protocol + '//' + window.location.host + result.link;
-                    sendMessage(fullUrl,'file');
-                    resetUploadState();
-                    showUpload.style.backgroundColor = 'white';
-                    showUploadArea = false;
-                    uploadStatus.style.display = 'none';
-                    break;
-                }
-            }
-        } catch (error) {
-            statusText.textContent = `错误: ${error.message}`;
-            resetUploadState();
-        }
-    }
-    function displayUploadBar(){
-        if(showUploadArea){
-            uploadStatus.style.display = 'none';
-            showUpload.style.backgroundColor = 'white';
-            showUploadArea = false;
-        }else{
-            uploadStatus.style.display = 'flex';
-            showUpload.style.backgroundColor ='#8BC34A';
-            showUploadArea = true;
+            button.textContent="暂停";
+            await uploadFileInBackground(localUploadId);
         }
     }
     function connect() {

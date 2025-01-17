@@ -30,19 +30,21 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
         
         try {
             if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+                fs.unlinkSync(filePath); 
                 console.log(`Deleted file: ${uploadInfo.filename}`);
             }
-            activeUploads.delete(fileId);
+            activeUploads.delete(fileId); 
             res.status(200).json({ message: 'Upload cancelled and file deleted' });
         } catch (error) {
             console.error('Error deleting file:', error);
             res.status(500).json({ error: 'Failed to delete file' });
         }
     } else {
-        res.status(404).json({ error: 'Upload not found' });
+        console.log(`Upload with fileId ${fileId} not found, cancelling upload`);
+        res.status(200).json({ message: 'Upload cancelled successfully (no file found)' });
     }
 });
+
 
 uploadRouter.post('/', async (req, res) => {
     try {

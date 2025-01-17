@@ -15,24 +15,15 @@
             <div id="connection-status" class="connection-status"></div>
         </div>
         <div id="chat-box"></div>
-        <div class="upload-status" id="upload-status">
-            <input type="file" id="upload-file-input" />
-            <div id="uploadBtnContainer">
-                <button id="uploadBtn">▶️</button>
-                <button id="pauseBtn" disabled>⏸️</button>
-                <button id="cancelBtn" disabled>❌</button>
-            </div>
-            <div id="statusText"></div>
-        </div>
         <div class="input-container">
             <input type="text" id="message-input" placeholder="在这里输入消息（最多100字）" autocomplete="off" maxlength="100">
             <button id = "submit-message">发送</button>
         </div>
         <div class="media-controls">
-            <button id="submit-file">图片</button>
-            <input type="file" id="file-input" accept="image/*">
+            <button id="submit-image">图片</button>
             <button id="record-audio" class="record-button">语音</button>
-            <button id="show-upload" class="show-upload">文件</button>
+            <button id="submit-file" class="show-upload">文件</button>
+            <input type="file" id="file-input">
         </div>
         <div class="overlay" id="overlay"></div>
     </div>
