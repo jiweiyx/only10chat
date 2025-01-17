@@ -206,13 +206,15 @@
                     progressContainer.remove(); 
                     const fullUrl = window.location.protocol + '//' + window.location.host + result.link;
                     sendMessage(fullUrl, 'file');
-                    isPaused.delete(uploadFileId);
+                    isPaused.delete(localUploadId);
                     lastUploadedChunk.delete(localUploadId);
+                    fileInput.value='';
+
                 }
             }
         } catch (error) {
             // 错误处理：显示文件上传失败消息
-            displaySystemMessage(`文件上传失败: ${error.message}`, true);
+            displaySystemMessage(`上传失败: ${error.message}`, true);
             if (progressDisplayBar) {
                 progressDisplayBar.textContent = '上传失败';
             }
@@ -326,7 +328,7 @@
         containerDiv.appendChild(progressContainer);
     }
     
-    function displayMessage(content, type, timestamp, sender,uploadFileId='null') {
+    function displayMessage(content, type, timestamp, sender,localUploadId='null') {
         const messageDiv = createMessageElement(type);
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
@@ -355,14 +357,14 @@
         textBody.appendChild(timeDiv);
 
         messageDiv.appendChild(textBody);
-        if (type === 'sent' && uploadFileId !== 'null')  {
+        if (type === 'sent' && localUploadId !== 'null')  {
             const uploadStatus = document.createElement('div');
-            displayUploadProgressBar(uploadFileId, uploadStatus);
+            displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
         appendMessage(messageDiv);
     }
-    function displayImage(content, type, timestamp, sender,uploadFileId='null') {
+    function displayImage(content, type, timestamp, sender,localUploadId='null') {
         const messageDiv = createMessageElement(type);
         
         const senderDiv = document.createElement('div');
@@ -403,9 +405,9 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
         messageDiv.appendChild(textBody);
-        if (type === 'sent' && uploadFileId !== 'null') {
+        if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
-            displayUploadProgressBar(uploadFileId, uploadStatus);
+            displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
         appendMessage(messageDiv);
@@ -435,7 +437,7 @@
         
         appendMessage(messageDiv);
     }
-    function displayVideo(content, type, timestamp, sender,uploadFileId='null') {
+    function displayVideo(content, type, timestamp, sender,localUploadId='null') {
         const messageDiv = createMessageElement(type);
     
         const senderDiv = document.createElement('div');
@@ -482,9 +484,9 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
         messageDiv.appendChild(textBody);
-        if (type === 'sent' && uploadFileId !== 'null') {
+        if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
-            displayUploadProgressBar(uploadFileId, uploadStatus);
+            displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
         appendMessage(messageDiv);
@@ -520,6 +522,7 @@
             }else{
                 progressBar.parentElement.parentElement.parentElement.remove();
                 displaySystemMessage('取消上传成功', false);
+                fileInput.value='';
             }
         } catch (error) {
             displaySystemMessage(`取消上传失败: ${error.message}`, true);
