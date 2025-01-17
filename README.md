@@ -87,6 +87,10 @@ PrivateChat 采用前后端分离的设计，前端通过浏览器与后端服�
 欢迎任何有兴趣的人分享和改进。
 如果你对搭建、定制或改进项目有任何疑问，欢迎提出 Issue 或 Pull Request，我们非常欢迎任何形式的参与！
 
+## Demo
+
+`https://shitiao.info`
+
 ## License
 
 本项目采用 MIT 开源协议，详见 [LICENSE](./LICENSE) 文件。
