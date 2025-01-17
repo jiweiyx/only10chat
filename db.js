@@ -2,6 +2,7 @@
 const { MongoClient, ObjectId } = require('mongodb');
 const path = require('path');
 const fs = require('fs').promises; // 引入 fs 模块
+const cron = require('node-cron');  // 引入 node-cron 模块
 
 
 // MongoDB 连接配置
@@ -103,6 +104,37 @@ async function closeDBConnection() {
         console.error('Error while closing MongoDB connection:', error);
     }
 }
+// 定时任务：每天检查并删除超过30天的记录
+cron.schedule('0 0 * * *', async () => {
+    const { collection } = await connectToDB();
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+
+    try {
+        // 查找超过30天的消息
+        const oldMessages = await collection.find({ timestamp: { $lt: thirtyDaysAgo } }).toArray();
+
+        for (const message of oldMessages) {
+            // 如果是文件或图片类型，删除对应文件
+            if (message.type === 'file' || message.type === 'image') {
+                const fileName = path.basename(message.content); // 提取文件名
+                const filePath = path.join(__dirname, 'public', 'upload', fileName);
+                try {
+                    await fs.unlink(filePath); // 删除文件
+                    console.log(`File deleted: ${filePath}`);
+                } catch (fileErr) {
+                    console.error(`Failed to delete file: ${filePath}`, fileErr);
+                }
+            }
+
+            // 删除过期的消息
+            await collection.deleteOne({ _id: message._id });
+            console.log(`Deleted message with ID: ${message._id}`);
+        }
+    } catch (err) {
+        console.error('Error during scheduled cleanup:', err);
+    }
+});
 
 module.exports = {
     insertChat,
