@@ -89,7 +89,7 @@ PrivateChat 采用前后端分离的设计，前端通过浏览器与后端服�
 
 ## Demo
 
-`https://shitiao.info`
+[十条](https://shitiao.info)
 
 ## License
 
