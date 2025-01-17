@@ -50,15 +50,6 @@ uploadRouter.post('/', async (req, res) => {
         const filesize = parseInt(req.headers['filesize']);
         const contentRange = req.headers['content-range'];
         const fileId = req.headers['x-file-id'];
-
-        console.log('Upload request received:', {
-            filename,
-            filesize,
-            contentRange,
-            fileId,
-            bodyLength: req.body?.length
-        });
-
         if (!filename || !filesize || !fileId) {
             return res.status(400).json({ error: 'Missing required headers' });
         }

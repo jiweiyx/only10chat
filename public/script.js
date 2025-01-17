@@ -1,20 +1,22 @@
 (() => {
+    //常量声明
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
+    let MAX_RECONNECT_ATTEMPTS = 5;
+    //变量声明
     let socket;
     let mediaRecorder;
     let audioChunks;
     let isRecording = false;
     let myID;
     let chatId;
-
-    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
-    const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
-    const MAX_IMAGE_SIZE = 3 * 1024 * 1024; //5Mb 
     let isPaused = false;
     let currentUpload = null;
     let lastUploadedChunk = 0;
     let currentFileId = null;
     let showUploadArea = false;
-
+    let reconnectAttempts = 0;
+   //获取界面操作button
     const messageInput = document.getElementById('message-input');
     const submitButton = document.getElementById('submit-message');
     const chatBox = document.getElementById('chat-box');
@@ -29,29 +31,24 @@
     const pauseBtn = document.getElementById('pauseBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const statusText = document.getElementById('statusText');
+    //绑定事件
     showUpload.addEventListener('click',displayUploadBar);
     uploadBtn.addEventListener('click',uploadFile);
     pauseBtn.addEventListener('click', togglePause);
     cancelBtn.addEventListener('click', cancelUpload);
-
-    // Event listeners for file input and preview
+    submitButton.addEventListener('click', handleTextSubmit);
+    recordButton.addEventListener('click', toggleRecording);  
     fileInput.addEventListener('change', handleFileSelect);
     submitFileButton.addEventListener('click', () => {
         fileInput.click();
     });
-
-    // Event listeners for message input
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleTextSubmit();
         }
     });
-    
-    submitButton.addEventListener('click', handleTextSubmit);
-
-    // Audio recording event listeners
-    recordButton.addEventListener('click', toggleRecording);         
+    //定义各函数
     async function startRecording(e) {
         if (e) e.preventDefault();
         if (isRecording) return;
@@ -93,7 +90,6 @@
             recordButton.textContent = "录音";
         }
     }
-
     function stopRecording() {
         if (!isRecording || !mediaRecorder) return;
         
@@ -111,61 +107,118 @@
         }
     }
     function handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (file.size > MAX_IMAGE_SIZE) {
-            displaySystemMessage('图片超过3兆, 建议你使用可以断点续传的文件按钮来上传', true);
+        const fileInput = event.target;
+        const file = fileInput.files[0];
+    
+        if (!file) {
+            displaySystemMessage('请选择一个文件', true);
+            return;
+        }
+    
+        if (file.size > MAX_FILE_SIZE) {
+            displaySystemMessage('文件太大了, 都超过了1个G, 选个小点的.', true);
             fileInput.value = '';
             return;
         }
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                // Create an image preview element
-                const imagePreview = document.createElement('img');
-                imagePreview.src = e.target.result;
-                imagePreview.className = 'image-preview';  // Apply custom class for styling
     
-                // Create a container for the image and buttons
-                const previewContainer = document.createElement('div');
-                previewContainer.className = 'preview-container';  // Apply a container class
-                previewContainer.appendChild(imagePreview);
-                
-                // Create send button
-                const sendImageBtn = document.createElement('button');
-                sendImageBtn.textContent = '发送';
-                sendImageBtn.className = 'send-image-btn';
-                sendImageBtn.onclick = () => {
-                    sendMessage(e.target.result, 'image');
-                    previewContainer.remove();  // Remove the entire preview container
-                    fileInput.value = '';  // Clear the file input
-                };
+        if (file.type.startsWith('image/')) {
+            // 创建预览元素
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'preview-container';
     
-                // Create cancel button
-                const cancelImageBtn = document.createElement('button');
-                cancelImageBtn.textContent = '取消';
-                cancelImageBtn.className = 'cancel-image-btn';
-                cancelImageBtn.onclick = () => {
-                    previewContainer.remove();  // Remove the preview container
-                    fileInput.value = '';  // Clear the file input
-                };
+            const imagePreview = document.createElement('img');
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.className = 'image-preview';
     
-                // Create a container for buttons
-                const buttonContainer = document.createElement('div');
-                buttonContainer.className = 'button-container';  // Apply button container styling
-                buttonContainer.appendChild(sendImageBtn);
-                buttonContainer.appendChild(cancelImageBtn);
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'button-container';
     
-                // Add the button container to the preview container
-                previewContainer.appendChild(buttonContainer);
+            const sendImageBtn = document.createElement('button');
+            sendImageBtn.textContent = '发送';
+            sendImageBtn.className = 'send-image-btn';
     
-                // Append preview container to the body (or any other element you wish)
-                document.body.appendChild(previewContainer);
+            const cancelImageBtn = document.createElement('button');
+            cancelImageBtn.textContent = '取消';
+            cancelImageBtn.className = 'cancel-image-btn';
+    
+            // 追加元素
+            previewContainer.appendChild(imagePreview);
+            buttonContainer.appendChild(sendImageBtn);
+            buttonContainer.appendChild(cancelImageBtn);
+            previewContainer.appendChild(buttonContainer);
+            document.body.appendChild(previewContainer);
+    
+            // 取消按钮功能
+            cancelImageBtn.onclick = () => {
+                previewContainer.remove();
+                fileInput.value = '';
             };
-            reader.readAsDataURL(file);
+            
+            // 发送按钮功能
+            sendImageBtn.onclick = () => {
+                previewContainer.remove();
+                fileInput.value = '';
+                displaySystemMessage('图片正在后台上传',false);
+
+                // 启动后台上传
+                uploadFileInBackground(file);
+
+                //显示发送消息
+                displayImage(URL.createObjectURL(file), 'sent', new Date().toISOString(), myID);
+            };
         }
     }
+    async function uploadFileInBackground(file) {
+        currentFileId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11);
+        currentUpload = { file, uploadedSize: 0 };
+        lastUploadedChunk = 0;
+        isPaused = false;
+
+                
     
+        try {
+            const encodedFileName = encodeURIComponent(file.name);
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+    
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                        'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
+                        'filename': encodedFileName,
+                        'filesize': file.size.toString(),
+                        'X-File-Id': currentFileId,
+                    },
+                    body: chunk,
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`上传失败: ${response.status} ${response.statusText}`);
+                }
+    
+                const result = await response.json();
+                currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
+                const progress = (currentUpload.uploadedSize / file.size) * 100;
+                displaySystemMessage(`图片正在上传: ${progress.toFixed(2)}%`, false);
+    
+                if (result.status === 'complete') {
+                    displaySystemMessage('图片上传完成！', false);
+                    fullUrl = window.location.protocol + '//' + window.location.host + result.link;
+                    sendMessage(fullUrl,'image');
+                    break;
+                }
+            }
+        } catch (error) {
+            displaySystemMessage(`后台上传失败: ${error.message}`, true);
+        } finally {
+            resetUploadState();
+        }
+    }  
     function handleTextSubmit() {
         const content = messageInput.value.trim();
         if (content) {
@@ -173,37 +226,6 @@
             messageInput.value = '';
         }
     }
-    let reconnectAttempts = 0;
-    let MAX_RECONNECT_ATTEMPTS = 5;
-
-    function connect() {
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            displaySystemMessage('重联多次没有成功,已停止.', true);
-            return;
-        }
-        const urlParams = new URLSearchParams(window.location.search);
-        chatId = urlParams.get('id');
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/?id=${chatId}`; 
-        socket = new WebSocket(wsUrl);
-        socket.onopen = () => {
-            connectionStatus.className = `connection-status connected`;
-            reconnectAttempts = 0;
-        };
-        
-        socket.onclose = () => {
-            connectionStatus.className = `connection-status disconnected`;
-            reconnectAttempts++;
-            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-            setTimeout(connect, delay);
-        };
-        
-        socket.onerror = () => {
-            connectionStatus.className = `connection-status error`;
-        };
-        socket.onmessage = (event) => handleMessage(JSON.parse(event.data));    
-    }
-    
     function handleMessage(message) {
         try {
             const isImage = (content) =>
@@ -254,9 +276,7 @@
         } catch (error) {
             displaySystemMessage('显示消息出错', true);
         }
-    }
-    
-    
+    }     
     function sendMessage(content, type = 'text') {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             displaySystemMessage('Connection not available', true);
@@ -289,15 +309,11 @@
             case 'text':
                 displayMessage(content, 'sent', message.timestamp, myID);
                 break;
-            case 'image':
-                displayImage(content, 'sent', message.timestamp, myID);
-                break;
             case 'audio':
                 displayAudio(content, 'sent', message.timestamp, myID);
                 break;
         }
     }
-
     function displayMessage(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         const senderDiv = document.createElement('div');
@@ -329,7 +345,6 @@
         messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }
-
     function displayImage(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
@@ -373,7 +388,6 @@
         messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }
-
     function displayAudio(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
@@ -449,7 +463,6 @@
     
         appendMessage(messageDiv);
     }
-    
     function displaySystemMessage(content, isError = false) {
         const messageDiv = document.getElementById('systemDiv');
         messageDiv.className = `system-message ${isError ? 'error' : ''}`;
@@ -460,7 +473,6 @@
         div.className = `message ${type}`;
         return div;
     }
-
     function appendMessage(messageDiv) {
         chatBox.appendChild(messageDiv);
         if (chatBox.children.length > 10) {
@@ -480,13 +492,10 @@
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
-    
-
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
         return date.toLocaleTimeString();
     }
-
     function resetUploadState() {
 
         currentUpload = null;
@@ -499,7 +508,6 @@
         pauseBtn.disabled = true;
         cancelBtn.disabled = true;
     }
-
     async function cancelUpload() {
         if (!currentFileId) return;
 
@@ -518,7 +526,6 @@
             statusText.textContent = `取消出错: ${error.message}`;
         }
     }
-
     function togglePause() {
         isPaused = !isPaused;
         
@@ -531,7 +538,6 @@
             }
         }
     }
-
     async function uploadFile() {
         
         const file = uploadFileInput.files[0];
@@ -560,7 +566,6 @@
         pauseBtn.textContent = '⏸️';
         await continueUpload();
     }
-
     async function continueUpload() {
         if (!currentUpload || !currentUpload.file) return;
        
@@ -630,6 +635,32 @@
             showUploadArea = true;
         }
     }
-    // Initialize connection
+    function connect() {
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            displaySystemMessage('重联多次没有成功,已停止.', true);
+            return;
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        chatId = urlParams.get('id');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/?id=${chatId}`; 
+        socket = new WebSocket(wsUrl);
+        socket.onopen = () => {
+            connectionStatus.className = `connection-status connected`;
+            reconnectAttempts = 0;
+        };
+        
+        socket.onclose = () => {
+            connectionStatus.className = `connection-status disconnected`;
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            setTimeout(connect, delay);
+        };
+        
+        socket.onerror = () => {
+            connectionStatus.className = `connection-status error`;
+        };
+        socket.onmessage = (event) => handleMessage(JSON.parse(event.data));    
+    }
     connect();
 })();

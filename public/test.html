@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS进度条</title>
+    <style>
+        /* 进度条容器 */
+        .progress-bar-container {
+            width: 100%;
+            max-width: 500px; /* 设置最大宽度 */
+            height: 20px;
+            background-color: #f3f3f3; /* 背景色 */
+            border: 1px solid #ccc; /* 边框 */
+            border-radius: 10px; /* 圆角 */
+            overflow: hidden;
+            margin: 20px auto;
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            width: 50%; /* 当前进度，动态调整 */
+            height: 100%;
+            background-color: #4caf50; /* 进度条颜色 */
+            transition: width 0.3s ease; /* 添加动画效果 */
+        }
+    </style>
+</head>
+<body>
+    <h1>CSS进度条示例</h1>
+
+    <!-- 进度条容器 -->
+    <div class="progress-bar-container">
+        <!-- 进度条 -->
+        <div class="progress-bar"></div>
+    </div>
+
+    <button onclick="updateProgress(70)">更新进度到70%</button>
+    <button onclick="updateProgress(30)">更新进度到30%</button>
+
+    <script>
+        // 动态更新进度条
+        function updateProgress(percentage) {
+            const progressBar = document.querySelector('.progress-bar');
+            progressBar.style.width = percentage + '%';
+        }
+    </script>
+</body>
+</html>

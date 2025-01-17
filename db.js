@@ -51,8 +51,8 @@ async function insertChat(newChat) {
             if (oldestMessages.length > 0) {
                 const oldestMessage = oldestMessages[0];
 
-                // 如果类型是 file，删除文件
-                if ((oldestMessage.type === 'file')) {
+                // if file type is file or image, delete at file at same time
+                if ((oldestMessage.type === 'file' || oldestMessage.type === 'image')) {
                     const fileName = path.basename(oldestMessage.content); // 提取文件名
                     const filePath = path.join(__dirname, 'public', 'upload', fileName);
                     try {
