@@ -300,7 +300,8 @@ button:disabled {
 }
 
 .chat-video {
-    max-width: 100%;
+    max-width: 500px; 
+    max-height: 300px; 
     height: auto;
 }
 
