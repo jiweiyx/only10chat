@@ -180,16 +180,11 @@
             for (partIndex = lastUploadedPart.get(localUploadId); partIndex < totalParts; partIndex++) {
                 if (isPaused.get(localUploadId)) {
                     lastUploadedPart.set(localUploadId, partIndex);
-                
                     const progressButtonContainer = progressDisplayBar.closest('.progress-container');
-                    console.log(progressButtonContainer);
-                
                     const pauseButton = progressButtonContainer.querySelector('.progress-pause-button');
                     const cancelButton = progressButtonContainer.querySelector('.progress-cancel-button');
-                
                     pauseButton.textContent = "继续";
                     cancelButton.disabled = false;
-                
                     return;
                 }
                 
@@ -270,10 +265,6 @@
     }
     function handleMessage(message) {
         try {
-            const isMp4 = (content) =>
-                typeof content === 'string' && content.toLowerCase().endsWith('.mp4');
-            const senderType = message.senderId === myID ? 'sent' : 'received';
-    
             switch (message.type) {
                 case 'file':
                     if (isValidImageURL(message.content)) {
@@ -580,7 +571,10 @@
     async function handlePause(localUploadId,button) {
         isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
         if (!isPaused.get(localUploadId)) {
+            //继续上传
             button.textContent="暂停";
+            const cancelButton = button.nextElementSibling;
+            cancelButton.disabled = true;
             await uploadFileInBackground(localUploadId);
         }
     }
