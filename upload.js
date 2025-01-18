@@ -151,29 +151,21 @@ uploadRouter.post('/', async (req, res) => {
             }
             if (allChunksExist) {
                 const finalFilePath = path.join(uploadFolder, uniqueFilename);
-    try {
-        const finalWriteStream = fs.createWriteStream(finalFilePath, { flags: 'w' });
+                const finalWriteStream = fs.createWriteStream(finalFilePath, { flags: 'w' });
 
-        // Stream all parts into the final file
-        for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
-            const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
-            const chunkStream = fs.createReadStream(chunkPath);
-            chunkStream.pipe(finalWriteStream, { end: false });
-
-            // Optionally remove the chunk after writing to the final file
-            chunkStream.on('end', () => {
-                fs.unlinkSync(chunkPath); // Delete chunk once it is written
-            });
-        }
-
-        finalWriteStream.on('finish', () => {
-            console.log(`Final file created: ${finalFilePath}`);
-        });
-
-        finalWriteStream.end();
-    } catch (error) {
-        console.error('Error combining chunks:', error);
-    }
+                try {
+                    for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+                        const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
+                        const chunkData = fs.readFileSync(chunkPath); // 读取分片数据
+                        finalWriteStream.write(chunkData); // 写入最终文件
+                        fs.unlinkSync(chunkPath); // 删除分片文件
+                    }
+                    finalWriteStream.end();
+                    console.log(`Final file created: ${finalFilePath}`);
+                } catch (error) {
+                    console.error('Error combining chunks:', error);
+                }
+                
 
     activeUploads.delete(fileId);
     res.json({
