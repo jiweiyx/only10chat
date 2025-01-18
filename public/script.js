@@ -171,6 +171,7 @@
     async function uploadFileInBackground(localUploadId) {
         file = currentFileId.get(localUploadId);
         const currentUpload = { file, uploadedSize: 0 };
+        console.log(file.name);
         const encodedFileName = encodeURIComponent(file.name);
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);       
         const progressDisplayBar = document.getElementById(localUploadId);
@@ -217,6 +218,7 @@
                     sendMessage(fullUrl, 'file');
                     isPaused.delete(localUploadId);
                     lastUploadedChunk.delete(localUploadId);
+                    currentFileId.delete(localUploadId);
                     fileInput.value='';
 
                 }
@@ -227,10 +229,6 @@
             if (progressDisplayBar) {
                 progressDisplayBar.textContent = '上传失败';
             }
-        } finally {
-            isPaused.delete(localUploadId);
-            lastUploadedChunk.delete(localUploadId);
-            currentFileId.delete(localUploadId);            
         }
     }     
     function handleTextSubmit() {
@@ -355,23 +353,15 @@
         
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
-        timeDiv.textContent = new Date(timestamp).toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit', 
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        }).replace(/\//g, '-');
+        timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
 
-        messageDiv.appendChild(textBody);
         if (type === 'sent' && localUploadId !== 'null')  {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
+        messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }
     function displayImage(content, type, timestamp, sender, localUploadId = 'null') {
@@ -419,15 +409,12 @@
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
-    
-        messageDiv.appendChild(textBody);
-    
         if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
-    
+        messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }    
     function displayAudio(content, type, timestamp, sender) {
@@ -501,12 +488,12 @@
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
-        messageDiv.appendChild(textBody);
         if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
+        messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }
     function displayOnTop(content, isError = false) {
@@ -562,6 +549,8 @@
             button.textContent="继续";
         } else {
             button.textContent="暂停";
+            console.log(localUploadId);
+            console.log(currentFileId.get(localUploadId));
             await uploadFileInBackground(localUploadId);
         }
     }
