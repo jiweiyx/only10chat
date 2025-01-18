@@ -261,6 +261,13 @@
             return false;
         }
     }
+    function isSupportedMedia(content) {
+        if (typeof content !== 'string') return false;
+        // 支持的视频格式
+        const supportedFormats = ['.mp4', '.webm', '.ogg'];
+        // 判断是否是视频格式
+        return supportedFormats.some(extension => content.toLowerCase().endsWith(extension));
+    }
     function handleMessage(message) {
         try {
             const isMp4 = (content) =>
@@ -271,7 +278,7 @@
                 case 'file':
                     if (isValidImageURL(message.content)) {
                         displayImage(message.content, senderType, message.timestamp, message.senderId);
-                    } else if (isMp4(message.content)) {
+                    } else if (isSupportedMedia(message.content)) {
                         displayVideo(message.content, senderType, message.timestamp, message.senderId);
                     } else {
                         displayMessage(message.content, senderType, message.timestamp, message.senderId);
