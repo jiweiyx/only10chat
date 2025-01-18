@@ -111,39 +111,16 @@ function handleMessage(ws, message, clientInfo) {
             };
         }
         chatId = parsedMessage.chatId;
-        // Handle different message types
-        switch (parsedMessage.type) {
-            case MessageType.FILE:
-            case MessageType.TEXT:
-                broadcast(chatId,{
-                    type: MessageType.TEXT,
-                    senderId: clientInfo.id,
-                    content: parsedMessage.content,
-                    timestamp: new Date().toISOString()
-                }, ws);
-                break;
-
-            case MessageType.IMAGE:
-                broadcast(chatId,{
-                    type: MessageType.IMAGE,
-                    senderId: clientInfo.id,
-                    content: parsedMessage.content,
-                    timestamp: new Date().toISOString()
-                }, ws);
-                break;
-
-            case MessageType.AUDIO:
-                broadcast(chatId,{
-                    type: MessageType.AUDIO,
-                    senderId: clientInfo.id,
-                    content: parsedMessage.content,
-                    timestamp: new Date().toISOString()
-                }, ws);
-                break;
-
-            default:
-                console.warn(`Unknown message type from client ${clientInfo.id}`);
-                sendErrorMessage(ws, 'Invalid message type');
+        if (Object.values(MessageType).includes(parsedMessage.type)) {
+            broadcast(chatId, {
+                type: parsedMessage.type,
+                senderId: clientInfo.id,
+                content: parsedMessage.content,
+                timestamp: new Date().toISOString()
+            }, ws);
+        } else {
+            console.warn(`Unknown message type from client ${clientInfo.id}`);
+            sendErrorMessage(ws, 'Invalid message type');
         }
         //save message to database
         insertChat({

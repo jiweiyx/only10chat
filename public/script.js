@@ -238,18 +238,25 @@
             messageInput.value = '';
         }
     }
+    function isValidImageURL(url) {
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        try {
+            const urlObj = new URL(url);
+            const extension = urlObj.pathname.split('.').pop().toLowerCase();
+            return imageExtensions.includes(extension);
+        } catch (e) {
+            return false;
+        }
+    }
     function handleMessage(message) {
         try {
-            const isImage = (content) =>
-                typeof content === 'string' && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(content);
             const isMp4 = (content) =>
                 typeof content === 'string' && content.toLowerCase().endsWith('.mp4');
-    
             const senderType = message.senderId === myID ? 'sent' : 'received';
     
             switch (message.type) {
                 case 'file':
-                    if (isImage(message.content)) {
+                    if (isValidImageURL(message.content)) {
                         displayImage(message.content, senderType, message.timestamp, message.senderId);
                     } else if (isMp4(message.content)) {
                         displayVideo(message.content, senderType, message.timestamp, message.senderId);
@@ -380,43 +387,50 @@
     
         const img = document.createElement('img');
         img.src = content;
-        img.className = 'chat-image thumbnail';    
+        img.className = 'chat-image thumbnail';
+    
         img.onload = () => {
-            imageContainer.appendChild(img); 
-            chatBox.scrollTop = chatBox.scrollHeight;
-        };
+                imageContainer.appendChild(img);
+                chatBox.scrollTop = chatBox.scrollHeight; // Scroll to bottom on successful load
+            };
     
-        img.onerror = () => {
-            img.alt = 'Image failed to load'; 
-            imageContainer.appendChild(img);
-        };
+            img.onerror = () => {
+                img.alt = 'Image failed to load';
+                const errorText = document.createElement('span');
+                errorText.textContent = 'Failed to load image.';
+                imageContainer.appendChild(errorText);
+            };
     
-        img.onclick = () => {
-            const fullImage = document.createElement('div');
-            fullImage.className = 'full-image-overlay';
-            fullImage.onclick = () => fullImage.remove();
+            img.onclick = () => {
+                const fullImage = document.createElement('div');
+                fullImage.className = 'full-image-overlay';
+                fullImage.onclick = () => fullImage.remove();
     
-            const imgFull = document.createElement('img');
-            imgFull.src = content;
-            imgFull.className = 'full-image';
+                const imgFull = document.createElement('img');
+                imgFull.src = content;
+                imgFull.className = 'full-image';
     
-            fullImage.appendChild(imgFull);
-            document.body.appendChild(fullImage);
-        };
-       textBody.appendChild(imageContainer);
+                fullImage.appendChild(imgFull);
+                document.body.appendChild(fullImage);
+            };
+        
+    
+        textBody.appendChild(imageContainer);
     
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
+    
         if (type === 'sent' && localUploadId !== 'null') {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
         }
+    
         messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
-    }    
+    }  
     function displayAudio(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
