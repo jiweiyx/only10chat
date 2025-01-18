@@ -4,7 +4,7 @@
     const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
     let MAX_RECONNECT_ATTEMPTS = 5;
     const isPaused = new Map();
-    const lastUploadedChunk = new Map();
+    const lastUploadedPart = new Map();
     const currentFileId = new Map();
 
     //变量声明
@@ -151,7 +151,7 @@
             fileType = 'file';
         }
         let localUploadId = generateLocalUploadId(); // 生成本地唯一上传编号
-        lastUploadedChunk.set(localUploadId,0);
+        lastUploadedPart.set(localUploadId,0);
         currentFileId.set(localUploadId, file);
         let fileUrl = URL.createObjectURL(file);
         switch (fileType) {
@@ -171,18 +171,18 @@
     async function uploadFileInBackground(localUploadId) {
         file = currentFileId.get(localUploadId);
         const currentUpload = { file, uploadedSize: 0 };
-        console.log(file.name);
         const encodedFileName = encodeURIComponent(file.name);
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);       
+        const totalParts = Math.ceil(file.size / CHUNK_SIZE);       
         const progressDisplayBar = document.getElementById(localUploadId);
         isPaused.set(localUploadId,false);
         try {
-            for (let chunkIndex = lastUploadedChunk.get(localUploadId); chunkIndex < totalChunks; chunkIndex++) {
+            let partIndex;
+            for (partIndex = lastUploadedPart.get(localUploadId); partIndex < totalParts; partIndex++) {
                 if (isPaused.get(localUploadId)) {
-                    lastUploadedChunk.set(localUploadId, chunkIndex);
+                    lastUploadedPart.set(localUploadId, partIndex);
                     return;
                 }
-                const start = chunkIndex * CHUNK_SIZE;
+                const start = partIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
     
@@ -217,7 +217,7 @@
                     const fullUrl = window.location.protocol + '//' + window.location.host + result.link;
                     sendMessage(fullUrl, 'file');
                     isPaused.delete(localUploadId);
-                    lastUploadedChunk.delete(localUploadId);
+                    lastUploadedPart.delete(localUploadId);
                     currentFileId.delete(localUploadId);
                     fileInput.value='';
 
@@ -549,8 +549,6 @@
             button.textContent="继续";
         } else {
             button.textContent="暂停";
-            console.log(localUploadId);
-            console.log(currentFileId.get(localUploadId));
             await uploadFileInBackground(localUploadId);
         }
     }

@@ -65,7 +65,8 @@ uploadRouter.post('/', async (req, res) => {
                 originalName: filename,
                 size: filesize,
                 isCancelled: false,
-                uploadedChunks: 0 // Track uploaded chunks
+                uploadedChunks: 0,
+                currentSize: 0 
             });
         } else {
             const uploadInfo = activeUploads.get(fileId);
@@ -129,41 +130,60 @@ uploadRouter.post('/', async (req, res) => {
         });
 
         uploadInfo.uploadedChunks++;
-
-        const currentSize = uploadInfo.uploadedChunks * req.body.length;
+        uploadInfo.currentSize += req.body.length;
+        const currentSize = uploadInfo.currentSize;
         console.log('Chunk written:', {
             filename: uniqueFilename,
-            currentSize,
+            currentSize: currentSize,
             totalSize: filesize,
             chunkStart: startByte,
             chunkSize: req.body.length
         });
 
         if (currentSize === filesize) {
-            // Combine chunks into the final file here if needed
-            const finalFilePath = path.join(uploadFolder, uniqueFilename);
-            try {
-                const finalWriteStream = fs.createWriteStream(finalFilePath, { flags: 'w' });
-
-                for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
-                    const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
-                    const chunkData = fs.readFileSync(chunkPath);
-                    finalWriteStream.write(chunkData);
-                    fs.unlinkSync(chunkPath); // Optionally remove chunk after writing to final file
+            let allChunksExist = true;
+            for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+                const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
+                if (!fs.existsSync(chunkPath)) {
+                    allChunksExist = false;
+                    break;
                 }
-
-                finalWriteStream.end();
-                console.log(`Final file created: ${finalFilePath}`);
-            } catch (error) {
-                console.error('Error combining chunks:', error);
             }
+            if (allChunksExist) {
+                const finalFilePath = path.join(uploadFolder, uniqueFilename);
+    try {
+        const finalWriteStream = fs.createWriteStream(finalFilePath, { flags: 'w' });
 
-            activeUploads.delete(fileId);
-            res.json({
-                status: 'complete',
-                uploadedSize: currentSize,
-                link: `/upload/${uniqueFilename}`
+        // Stream all parts into the final file
+        for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+            const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
+            const chunkStream = fs.createReadStream(chunkPath);
+            chunkStream.pipe(finalWriteStream, { end: false });
+
+            // Optionally remove the chunk after writing to the final file
+            chunkStream.on('end', () => {
+                fs.unlinkSync(chunkPath); // Delete chunk once it is written
             });
+        }
+
+        finalWriteStream.on('finish', () => {
+            console.log(`Final file created: ${finalFilePath}`);
+        });
+
+        finalWriteStream.end();
+    } catch (error) {
+        console.error('Error combining chunks:', error);
+    }
+
+    activeUploads.delete(fileId);
+    res.json({
+        status: 'complete',
+        uploadedSize: currentSize,
+        link: `/upload/${uniqueFilename}`
+    });
+        }else{
+            res.status(500).json({ error: 'Some chunks are missing, upload failed' });
+        }
         } else {
             res.status(206).json({
                 status: 'partial',
