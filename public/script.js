@@ -3,6 +3,10 @@
     const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
     const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
     let MAX_RECONNECT_ATTEMPTS = 5;
+    const isPaused = new Map();
+    const lastUploadedChunk = new Map();
+    const currentFileId = new Map();
+
     //变量声明
     let socket;
     let mediaRecorder;
@@ -10,9 +14,6 @@
     let isRecording = false;
     let myID;
     let chatId;
-    const isPaused = new Map();
-    let lastUploadedChunk = new Map();
-    let currentFileId = new Map();
     let reconnectAttempts = 0;
    //获取界面操作button
     const messageInput = document.getElementById('message-input');
@@ -105,7 +106,7 @@
                 }
             }, 60000);  // 60秒
         } catch (err) {
-            displaySystemMessage('没得到麦克风使用权限', true);
+            toast('没得到麦克风使用权限', true);
             isRecording = false;
             recordButton.classList.remove('recording');
             recordButton.textContent = "录音";
@@ -132,12 +133,12 @@
         const file = fileInput.files[0];
     
         if (!file) {
-            displaySystemMessage('请选择一个文件', true);
+            toast('请选择一个文件', true);
             return;
         }
     
         if (file.size > MAX_FILE_SIZE) {
-            displaySystemMessage('文件太大了, 都超过了1个G, 选个小点的.', true);
+            toast('文件太大了, 都超过了1个G, 选个小点的.', true);
             fileInput.value = '';
             return;
         }
@@ -222,12 +223,14 @@
             }
         } catch (error) {
             // 错误处理：显示文件上传失败消息
-            displaySystemMessage(`上传失败: ${error.message}`, true);
+            toast(`上传失败: ${error.message}`, true);
             if (progressDisplayBar) {
                 progressDisplayBar.textContent = '上传失败';
             }
         } finally {
-            // 在上传完成后清理状态
+            isPaused.delete(localUploadId);
+            lastUploadedChunk.delete(localUploadId);
+            currentFileId.delete(localUploadId);            
         }
     }     
     function handleTextSubmit() {
@@ -273,24 +276,24 @@
                     if (message.content.startsWith('YourID')) {
                         myID = message.content.split(':')[1].trim();
                     }
-                    displaySystemMessage(message.content, false);
+                    displayOnTop(message.content, false);
                     break;
     
                 case 'error':
-                    displaySystemMessage(message.content, true);
+                    displayOnTop(message.content, true);
                     break;
     
                 default:
-                    displaySystemMessage(`消息类型不支持：${message.type}`, true);
+                    toast(`消息类型不支持：${message.type}`, true);
                     break;
             }
         } catch (error) {
-            displaySystemMessage('显示消息出错', true);
+            toast('显示消息出错', true);
         }
     }     
     function sendMessage(content, type = 'text') {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
-            displaySystemMessage('Connection not available', true);
+            toast('Connection not available', true);
             return;
         }
         const urlParams = new URLSearchParams(window.location.search);
@@ -506,10 +509,20 @@
         }
         appendMessage(messageDiv);
     }
-    function displaySystemMessage(content, isError = false) {
+    function displayOnTop(content, isError = false) {
         const messageDiv = document.getElementById('systemDiv');
         messageDiv.className = `system-message ${isError ? 'error' : ''}`;
         messageDiv.textContent = content;
+    }
+    function toast(content, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = content;
+        toast.classList.remove('error', 'success'); 
+        toast.classList.add(isError ? 'error' : 'success');
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
     }
     function createMessageElement(type) {
         const div = document.createElement('div');
@@ -525,22 +538,22 @@
     }
     async function handleCancel(localUploadId,progressBar) {
         if (!currentFileId.get(localUploadId)) return;
-        isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
+        isPaused.set(localUploadId, true); 
         try {
             const response = await fetch(`/upload/cancel/${localUploadId}`, {
                 method: 'DELETE'
             });
-
+    
             if (!response.ok) {
                 throw new Error('取消上传失败');
             }else{
                 progressBar.parentElement.parentElement.parentElement.remove();
-                displaySystemMessage('取消上传成功', false);
+                toast('取消上传成功', false);
                 fileInput.value='';
             }
         } catch (error) {
-            displaySystemMessage(`取消上传失败: ${error.message}`, true);
-        }
+            toast(`取消上传失败: ${error.message}`, true);
+        } 
     }
     async function handlePause(localUploadId,button) {
         isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
@@ -554,7 +567,7 @@
     }
     function connect() {
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            displaySystemMessage('重联多次没有成功,已停止.', true);
+            displayOnTop('重联多次没有成功,已停止.', true);
             return;
         }
         const urlParams = new URLSearchParams(window.location.search);

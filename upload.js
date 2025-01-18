@@ -26,25 +26,13 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
     const uploadInfo = activeUploads.get(fileId);
 
     if (uploadInfo && uploadInfo.filename) {
-        const filePath = path.join(uploadFolder, uploadInfo.filename);
-        
-        try {
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath); 
-                console.log(`Deleted file: ${uploadInfo.filename}`);
-            }
-            activeUploads.delete(fileId); 
-            res.status(200).json({ message: 'Upload cancelled and file deleted' });
-        } catch (error) {
-            console.error('Error deleting file:', error);
-            res.status(500).json({ error: 'Failed to delete file' });
-        }
+        uploadInfo.isCancelled = true;
+        res.status(200).json({ message: 'Upload marked as cancelled' });
     } else {
         console.log(`Upload with fileId ${fileId} not found, cancelling upload`);
         res.status(200).json({ message: 'Upload cancelled successfully (no file found)' });
     }
 });
-
 
 uploadRouter.post('/', async (req, res) => {
     try {
@@ -75,7 +63,9 @@ uploadRouter.post('/', async (req, res) => {
             activeUploads.set(fileId, {
                 filename: uniqueFilename,
                 originalName: filename,
-                size: filesize
+                size: filesize,
+                isCancelled: false,
+                uploadedChunks: 0 // Track uploaded chunks
             });
         } else {
             const uploadInfo = activeUploads.get(fileId);
@@ -85,11 +75,43 @@ uploadRouter.post('/', async (req, res) => {
             uniqueFilename = uploadInfo.filename;
         }
 
-        const filePath = path.join(uploadFolder, uniqueFilename);
+        const uploadInfo = activeUploads.get(fileId);
 
-        const writeStream = fs.createWriteStream(filePath, {
-            flags: startByte === 0 ? 'w' : 'r+',
-            start: startByte
+        // Check if the upload has been cancelled
+        if (uploadInfo.isCancelled) {
+            // Delete all already uploaded chunks
+            for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+                const chunkPath = path.join(uploadFolder, `${uploadInfo.filename}.part${i}`);
+                try {
+                    if (fs.existsSync(chunkPath)) {
+                        fs.unlinkSync(chunkPath);
+                        console.log(`Deleted chunk: ${chunkPath}`);
+                    }
+                } catch (error) {
+                    console.error('Error deleting chunk:', error);
+                }
+            }
+
+            // If the file was fully uploaded, delete the final file
+            const filePath = path.join(uploadFolder, uploadInfo.filename);
+            try {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath); // Delete final file
+                    console.log(`Deleted file: ${filePath}`);
+                }
+            } catch (error) {
+                console.error('Error deleting file:', error);
+            }
+
+            activeUploads.delete(fileId); // Clean up the record from activeUploads
+            return res.status(200).json({ message: 'Upload cancelled and chunks deleted' });
+        }
+
+        const chunkFilename = `${uniqueFilename}.part${uploadInfo.uploadedChunks}`;
+        const chunkPath = path.join(uploadFolder, chunkFilename);
+
+        const writeStream = fs.createWriteStream(chunkPath, {
+            flags: 'w', // Always overwrite chunks
         });
 
         await new Promise((resolve, reject) => {
@@ -106,9 +128,9 @@ uploadRouter.post('/', async (req, res) => {
             });
         });
 
-        const stats = fs.statSync(filePath);
-        const currentSize = stats.size;
+        uploadInfo.uploadedChunks++;
 
+        const currentSize = uploadInfo.uploadedChunks * req.body.length;
         console.log('Chunk written:', {
             filename: uniqueFilename,
             currentSize,
@@ -118,6 +140,24 @@ uploadRouter.post('/', async (req, res) => {
         });
 
         if (currentSize === filesize) {
+            // Combine chunks into the final file here if needed
+            const finalFilePath = path.join(uploadFolder, uniqueFilename);
+            try {
+                const finalWriteStream = fs.createWriteStream(finalFilePath, { flags: 'w' });
+
+                for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+                    const chunkPath = path.join(uploadFolder, `${uniqueFilename}.part${i}`);
+                    const chunkData = fs.readFileSync(chunkPath);
+                    finalWriteStream.write(chunkData);
+                    fs.unlinkSync(chunkPath); // Optionally remove chunk after writing to final file
+                }
+
+                finalWriteStream.end();
+                console.log(`Final file created: ${finalFilePath}`);
+            } catch (error) {
+                console.error('Error combining chunks:', error);
+            }
+
             activeUploads.delete(fileId);
             res.json({
                 status: 'complete',
@@ -136,26 +176,6 @@ uploadRouter.post('/', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Clean up incomplete uploads periodically
-setInterval(() => {
-    const now = Date.now();
-    activeUploads.forEach((uploadInfo, fileId) => {
-        const filePath = path.join(uploadFolder, uploadInfo.filename);
-        try {
-            const stats = fs.statSync(filePath);
-            // Remove uploads older than 1 hour
-            if (now - stats.mtime.getTime() > 3600000) {
-                fs.unlinkSync(filePath);
-                activeUploads.delete(fileId);
-                console.log(`Cleaned up stale upload: ${uploadInfo.filename}`);
-            }
-        } catch (error) {
-            // If file doesn't exist, remove from active uploads
-            activeUploads.delete(fileId);
-        }
-    });
-}, 3600000); // Check every hour
 
 function generateUniqueFilename(originalFilename) {
     const ext = path.extname(originalFilename);

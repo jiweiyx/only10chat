@@ -337,3 +337,28 @@ button:disabled {
     line-height: 8px;
     transition: width 0.5s ease-in-out;
   }
+  .toast {
+    position: fixed;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #f44336;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 15px;
+    visibility: hidden; 
+    opacity: 0; 
+    transition: opacity 0.5s, visibility 0.5s; 
+    z-index: 1000;
+  }
+  .toast.show {
+    visibility: visible;
+    opacity: 1;
+  }
+  .toast.error {
+    background-color: #f44336; 
+  }
+  .toast.success {
+    background-color: #4CAF50; 
+  }
