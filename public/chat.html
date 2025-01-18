@@ -23,11 +23,41 @@
             <button id="submit-image">图片</button>
             <button id="record-audio" class="record-button">语音</button>
             <button id="submit-file" class="show-upload">文件</button>
+            <div class="qrcode-container">
+                <img id="qrcode-small" class="qrcode-small" src="" alt="Chat Room QR Code" />
+            </div>
+            <input type="file" id="file-input">
             <input type="file" id="file-input">
         </div>
         <div class="overlay" id="overlay"></div>
         <div id="toast" class="toast"></div>
     </div>
+    <div class="qrcode-overlay" id="qrcode-overlay">
+        <img id="qrcode-large" class="qrcode-large" src="" alt="Large QR Code" />
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentUrl = encodeURIComponent(window.location.href);
+            const qrcodeSmall = document.getElementById('qrcode-small');
+            const qrcodeLarge = document.getElementById('qrcode-large');
+            const qrcodeOverlay = document.getElementById('qrcode-overlay');
+
+            // Set QR code image sources
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${currentUrl}&size=256x256`;
+            qrcodeSmall.src = qrCodeUrl;
+            qrcodeLarge.src = qrCodeUrl;
+
+            // Click to show large QR code
+            qrcodeSmall.addEventListener('click', function() {
+                qrcodeOverlay.style.display = 'flex';
+            });
+
+            // Click on overlay to hide
+            qrcodeOverlay.addEventListener('click', function() {
+                qrcodeOverlay.style.display = 'none';
+            });
+        });
+    </script>
     <script src="script.js"></script>
 </body>
 </html>

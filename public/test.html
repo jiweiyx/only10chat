@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room</title>
+    <!-- QRCode.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/lib/browser.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #qrcode {
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .error-message {
+            color: red;
+            display: none;
+            margin-top: 10px;
+        }
+
+        #qrcode img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat Room</h1>
+    <p>Scan this QR code to visit the chat room:</p>
+    <!-- Alternative version using QR Server -->
+    <div id="qrcode">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?data=REPLACE_WITH_URL&size=256x256" 
+             alt="Chat Room QR Code"
+             title="Scan to join chat room" />
+    </div>
+    
+    <script>
+        // Get current page URL
+        const currentUrl = window.location.href;
+
+        // QR Code options
+        const qrOptions = {
+            width: 256,
+            height: 256,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
+        };
+
+        // Generate QR code
+        try {
+            new QRCode(document.getElementById('qrcode'), {
+                text: currentUrl,
+                width: qrOptions.width,
+                height: qrOptions.height,
+                colorDark: qrOptions.color.dark,
+                colorLight: qrOptions.color.light,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            console.log('QR code generated successfully!');
+        } catch (error) {
+            console.error('Failed to initialize QR code:', error);
+            document.getElementById('error-message').style.display = 'block';
+        }
+
+        // Add click-to-copy functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentUrl = encodeURIComponent(window.location.href);
+            document.querySelector('#qrcode img').src = 
+                `https://api.qrserver.com/v1/create-qr-code/?data=${currentUrl}&size=256x256`;
+        });
+        
+    </script>
+</body>
+</html>
