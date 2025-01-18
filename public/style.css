@@ -300,9 +300,10 @@ button:disabled {
 }
 
 .chat-video {
-    max-width: 500px; 
+    width: 100%; 
+    height: auto; 
     max-height: 300px; 
-    height: auto;
+    object-fit: contain;
 }
 
 .full-video-overlay {
