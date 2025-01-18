@@ -180,8 +180,19 @@
             for (partIndex = lastUploadedPart.get(localUploadId); partIndex < totalParts; partIndex++) {
                 if (isPaused.get(localUploadId)) {
                     lastUploadedPart.set(localUploadId, partIndex);
+                
+                    const progressButtonContainer = progressDisplayBar.closest('.progress-container');
+                    console.log(progressButtonContainer);
+                
+                    const pauseButton = progressButtonContainer.querySelector('.progress-pause-button');
+                    const cancelButton = progressButtonContainer.querySelector('.progress-cancel-button');
+                
+                    pauseButton.textContent = "继续";
+                    cancelButton.disabled = false;
+                
                     return;
                 }
+                
                 const start = partIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
@@ -199,7 +210,9 @@
                 });
     
                 if (!response.ok) {
+                    console.log(`上传失败: ${response.status} ${response.statusText}`);
                     throw new Error(`上传失败: ${response.status} ${response.statusText}`);
+                    
                 }
     
                 const result = await response.json();
@@ -331,13 +344,14 @@
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'progress-button-container';
         const pauseButton = document.createElement('button');
-        pauseButton.className = 'progress-button pause-button';
+        pauseButton.className = 'progress-pause-button';
         pauseButton.textContent = '暂停';
         pauseButton.onclick = () => handlePause(uploadID,pauseButton);
         buttonContainer.appendChild(pauseButton);
         const cancelButton = document.createElement('button');
-        cancelButton.className = 'progress-button cancel-button';
+        cancelButton.className = 'progress-cancel-button';
         cancelButton.textContent = '取消';
+        cancelButton.disabled = true;
         cancelButton.onclick = () => handleCancel(uploadID, progressContainer);
         buttonContainer.appendChild(cancelButton);
         progressContainer.appendChild(buttonContainer);
@@ -558,10 +572,7 @@
     }
     async function handlePause(localUploadId,button) {
         isPaused.set(localUploadId, !isPaused.get(localUploadId)); 
-    
-        if (isPaused.get(localUploadId)) {
-            button.textContent="继续";
-        } else {
+        if (!isPaused.get(localUploadId)) {
             button.textContent="暂停";
             await uploadFileInBackground(localUploadId);
         }

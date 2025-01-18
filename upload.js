@@ -26,8 +26,31 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
     const uploadInfo = activeUploads.get(fileId);
 
     if (uploadInfo && uploadInfo.filename) {
-        uploadInfo.isCancelled = true;
-        res.status(200).json({ message: 'Upload marked as cancelled' });
+            // Delete all already uploaded chunks
+            for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
+                const chunkPath = path.join(uploadFolder, `${uploadInfo.filename}.part${i}`);
+                try {
+                    if (fs.existsSync(chunkPath)) {
+                        fs.unlinkSync(chunkPath);
+                        console.log(`Deleted chunk: ${chunkPath}`);
+                    }
+                } catch (error) {
+                    console.error('Error deleting chunk:', error);
+                }
+            }
+            // If the file was fully uploaded, delete the final file
+            const filePath = path.join(uploadFolder, uploadInfo.filename);
+            try {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath); // Delete final file
+                    console.log(`Deleted file: ${filePath}`);
+                }
+            } catch (error) {
+                console.error('Error deleting file:', error);
+            }
+            activeUploads.delete(fileId); // Clean up the record from activeUploads
+            return res.status(200).json({ message: 'Upload cancelled and chunks deleted' });
+        
     } else {
         console.log(`Upload with fileId ${fileId} not found, cancelling upload`);
         res.status(200).json({ message: 'Upload cancelled successfully (no file found)' });
@@ -64,7 +87,6 @@ uploadRouter.post('/', async (req, res) => {
                 filename: uniqueFilename,
                 originalName: filename,
                 size: filesize,
-                isCancelled: false,
                 uploadedChunks: 0,
                 currentSize: 0 
             });
@@ -78,43 +100,11 @@ uploadRouter.post('/', async (req, res) => {
 
         const uploadInfo = activeUploads.get(fileId);
 
-        // Check if the upload has been cancelled
-        if (uploadInfo.isCancelled) {
-            // Delete all already uploaded chunks
-            for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
-                const chunkPath = path.join(uploadFolder, `${uploadInfo.filename}.part${i}`);
-                try {
-                    if (fs.existsSync(chunkPath)) {
-                        fs.unlinkSync(chunkPath);
-                        console.log(`Deleted chunk: ${chunkPath}`);
-                    }
-                } catch (error) {
-                    console.error('Error deleting chunk:', error);
-                }
-            }
-
-            // If the file was fully uploaded, delete the final file
-            const filePath = path.join(uploadFolder, uploadInfo.filename);
-            try {
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath); // Delete final file
-                    console.log(`Deleted file: ${filePath}`);
-                }
-            } catch (error) {
-                console.error('Error deleting file:', error);
-            }
-
-            activeUploads.delete(fileId); // Clean up the record from activeUploads
-            return res.status(200).json({ message: 'Upload cancelled and chunks deleted' });
-        }
-
         const chunkFilename = `${uniqueFilename}.part${uploadInfo.uploadedChunks}`;
         const chunkPath = path.join(uploadFolder, chunkFilename);
-
         const writeStream = fs.createWriteStream(chunkPath, {
             flags: 'w', // Always overwrite chunks
         });
-
         await new Promise((resolve, reject) => {
             writeStream.write(req.body, (error) => {
                 if (error) reject(error);
