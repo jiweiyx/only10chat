@@ -58,7 +58,6 @@ async function insertChat(newChat) {
                     const filePath = path.join(__dirname, 'public', 'upload', fileName);
                     try {
                         await fs.unlink(filePath); // 删除文件
-                        console.log(`File deleted: ${filePath}`);
                     } catch (fileErr) {
                         console.error(`Failed to delete file: ${filePath}`, fileErr);
                     }
@@ -121,7 +120,6 @@ cron.schedule('0 0 * * *', async () => {
                 const filePath = path.join(__dirname, 'public', 'upload', fileName);
                 try {
                     await fs.unlink(filePath); // 删除文件
-                    console.log(`File deleted: ${filePath}`);
                 } catch (fileErr) {
                     console.error(`Failed to delete file: ${filePath}`, fileErr);
                 }
@@ -129,7 +127,6 @@ cron.schedule('0 0 * * *', async () => {
 
             // 删除过期的消息
             await collection.deleteOne({ _id: message._id });
-            console.log(`Deleted message with ID: ${message._id}`);
         }
     } catch (err) {
         console.error('Error during scheduled cleanup:', err);

@@ -25,7 +25,6 @@ app.get('/chat', (req, res) => {
     // 返回 chat.html 文件
     res.sendFile('chat.html', { root: path.join(__dirname, 'public') }, (err) => {
         if (err) {
-            console.error('Error serving chat.html:', err);
             res.status(500).send('Internal Server Error');
         }
     });

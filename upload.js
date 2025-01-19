@@ -32,7 +32,6 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
                 try {
                     if (fs.existsSync(chunkPath)) {
                         fs.unlinkSync(chunkPath);
-                        console.log(`Deleted chunk: ${chunkPath}`);
                     }
                 } catch (error) {
                     console.error('Error deleting chunk:', error);
@@ -43,7 +42,6 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
             try {
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath); // Delete final file
-                    console.log(`Deleted file: ${filePath}`);
                 }
             } catch (error) {
                 console.error('Error deleting file:', error);
@@ -52,7 +50,6 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
             return res.status(200).json({ message: 'Upload cancelled and chunks deleted' });
         
     } else {
-        console.log(`Upload with fileId ${fileId} not found, cancelling upload`);
         res.status(200).json({ message: 'Upload cancelled successfully (no file found)' });
     }
 });
@@ -122,14 +119,6 @@ uploadRouter.post('/', async (req, res) => {
         uploadInfo.uploadedChunks++;
         uploadInfo.currentSize += req.body.length;
         const currentSize = uploadInfo.currentSize;
-        console.log('Chunk written:', {
-            filename: uniqueFilename,
-            currentSize: currentSize,
-            totalSize: filesize,
-            chunkStart: startByte,
-            chunkSize: req.body.length
-        });
-
         if (currentSize === filesize) {
             let allChunksExist = true;
             for (let i = 0; i < uploadInfo.uploadedChunks; i++) {
@@ -151,7 +140,6 @@ uploadRouter.post('/', async (req, res) => {
                         fs.unlinkSync(chunkPath); // 删除分片文件
                     }
                     finalWriteStream.end();
-                    console.log(`Final file created: ${finalFilePath}`);
                 } catch (error) {
                     console.error('Error combining chunks:', error);
                 }

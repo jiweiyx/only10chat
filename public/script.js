@@ -205,7 +205,6 @@
                 });
     
                 if (!response.ok) {
-                    console.log(`上传失败: ${response.status} ${response.statusText}`);
                     throw new Error(`上传失败: ${response.status} ${response.statusText}`);
                     
                 }
@@ -386,7 +385,7 @@
     }
     function displayImage(content, type, timestamp, sender, localUploadId = null) {
         if (!content) {
-            console.error('Invalid content for image display');
+            toast('图片格式错误', true);
             return;
         }
         const chatBox = document.querySelector('.chat-box'); 
