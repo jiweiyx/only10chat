@@ -264,6 +264,10 @@
         return supportedFormats.some(extension => content.toLowerCase().endsWith(extension));
     }
     function handleMessage(message) {
+        if (message.senderId === myID) {
+            return;
+        }
+        const senderType = message.senderId === myID ? 'sent' : 'received';
         try {
             switch (message.type) {
                 case 'file':
@@ -304,7 +308,7 @@
                     break;
             }
         } catch (error) {
-            toast('显示消息出错', true);
+            toast(`显示消息出错${error}`, true);
         }
     }     
     function sendMessage(content, type = 'text') {
@@ -383,7 +387,13 @@
         messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
     }
-    function displayImage(content, type, timestamp, sender, localUploadId = 'null') {
+    function displayImage(content, type, timestamp, sender, localUploadId = null) {
+        if (!content) {
+            console.error('Invalid content for image display');
+            return;
+        }
+        console.log("image display start");
+        const chatBox = document.querySelector('.chat-box'); 
         const messageDiv = createMessageElement(type);
     
         const senderDiv = document.createElement('div');
@@ -402,30 +412,40 @@
         img.className = 'chat-image thumbnail';
     
         img.onload = () => {
-                imageContainer.appendChild(img);
+            imageContainer.appendChild(img);
+            if (chatBox) {
                 chatBox.scrollTop = chatBox.scrollHeight; // Scroll to bottom on successful load
-            };
+            }
+        };
     
-            img.onerror = () => {
+        img.onerror = () => {
+            if (!imageContainer.querySelector('span')) {
                 img.alt = 'Image failed to load';
                 const errorText = document.createElement('span');
                 errorText.textContent = 'Failed to load image.';
                 imageContainer.appendChild(errorText);
+            }
+        };
+    
+        img.onclick = () => {
+            const fullImage = document.createElement('div');
+            fullImage.className = 'full-image-overlay';
+    
+            const imgFull = document.createElement('img');
+            imgFull.src = content;
+            imgFull.className = 'full-image';
+            imgFull.style.maxWidth = '90vw';
+            imgFull.style.maxHeight = '90vh';
+    
+            fullImage.appendChild(imgFull);
+            document.body.appendChild(fullImage);
+    
+            document.body.style.overflow = 'hidden';
+            fullImage.onclick = () => {
+                document.body.style.overflow = '';
+                fullImage.remove();
             };
-    
-            img.onclick = () => {
-                const fullImage = document.createElement('div');
-                fullImage.className = 'full-image-overlay';
-                fullImage.onclick = () => fullImage.remove();
-    
-                const imgFull = document.createElement('img');
-                imgFull.src = content;
-                imgFull.className = 'full-image';
-    
-                fullImage.appendChild(imgFull);
-                document.body.appendChild(fullImage);
-            };
-        
+        };
     
         textBody.appendChild(imageContainer);
     
@@ -434,7 +454,7 @@
         timeDiv.textContent = formatTimestamp(timestamp);
         textBody.appendChild(timeDiv);
     
-        if (type === 'sent' && localUploadId !== 'null') {
+        if (type === 'sent' && localUploadId) {
             const uploadStatus = document.createElement('div');
             displayUploadProgressBar(localUploadId, uploadStatus);
             textBody.appendChild(uploadStatus);
@@ -442,7 +462,7 @@
     
         messageDiv.appendChild(textBody);
         appendMessage(messageDiv);
-    }  
+    }      
     function displayAudio(content, type, timestamp, sender) {
         const messageDiv = createMessageElement(type);
         
