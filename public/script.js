@@ -184,7 +184,7 @@
                     const pauseButton = progressButtonContainer.querySelector('.progress-pause-button');
                     const cancelButton = progressButtonContainer.querySelector('.progress-cancel-button');
                     pauseButton.textContent = "继续";
-                    cancelButton.disabled = false;
+                    cancelButton.style.visibility = "visible";
                     return;
                 }
                 
@@ -264,9 +264,6 @@
         return supportedFormats.some(extension => content.toLowerCase().endsWith(extension));
     }
     function handleMessage(message) {
-        if (message.senderId === myID) {
-            return;
-        }
         const senderType = message.senderId === myID ? 'sent' : 'received';
         try {
             switch (message.type) {
@@ -353,7 +350,7 @@
         const cancelButton = document.createElement('button');
         cancelButton.className = 'progress-cancel-button';
         cancelButton.textContent = '取消';
-        cancelButton.disabled = true;
+        cancelButton.style.visibility = "hidden";
         cancelButton.onclick = () => handleCancel(uploadID, progressContainer);
         buttonContainer.appendChild(cancelButton);
         progressContainer.appendChild(buttonContainer);
@@ -392,7 +389,6 @@
             console.error('Invalid content for image display');
             return;
         }
-        console.log("image display start");
         const chatBox = document.querySelector('.chat-box'); 
         const messageDiv = createMessageElement(type);
     
@@ -594,7 +590,7 @@
             //继续上传
             button.textContent="暂停";
             const cancelButton = button.nextElementSibling;
-            cancelButton.disabled = true;
+            cancelButton.style.visibility = "hidden";
             await uploadFileInBackground(localUploadId);
         }
     }
