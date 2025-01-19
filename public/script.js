@@ -29,7 +29,7 @@
     recordButton.addEventListener('click', toggleRecording);  
     fileInput.addEventListener('change', handleFileSelect);
     submitImageButton.addEventListener('click', () => {
-        fileInput.accept = 'image/*';
+        fileInput.accept = 'image/*,video/*'; 
         fileInput.click();
     });
     submitFileButton.addEventListener('click', () => {
@@ -409,9 +409,6 @@
     
         img.onload = () => {
             imageContainer.appendChild(img);
-            if (chatBox) {
-                chatBox.scrollTop = chatBox.scrollHeight; // Scroll to bottom on successful load
-            }
         };
     
         img.onerror = () => {
@@ -502,9 +499,6 @@
         video.src = content;
         video.className = 'chat-video thumbnail';
         video.controls = true; // 添加视频控制按钮
-        video.onloadeddata = () => {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        };
     
         video.onclick = () => {
             const fullVideo = document.createElement('div');
@@ -563,7 +557,9 @@
         if (chatBox.children.length > 10) {
             chatBox.removeChild(chatBox.firstChild); 
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
+        requestAnimationFrame(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
     }
     async function handleCancel(localUploadId,progressBar) {
         if (!currentFileId.get(localUploadId)) return;
