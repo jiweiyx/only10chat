@@ -42,6 +42,23 @@
             handleTextSubmit();
         }
     });
+    chatBox.addEventListener('dragover', (event) => {
+        event.preventDefault(); 
+        chatBox.classList.add('dragover');
+    });
+    chatBox.addEventListener('dragleave', () => {
+        chatBox.classList.remove('dragover');
+    });
+    chatBox.addEventListener('drop', (event) => {
+        event.preventDefault();
+        chatBox.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                handleFileUpload(files[i]);
+            }
+        }
+    });
     //定义各函数
     function escapeHtml(unsafe) {
         if (/^https?:\/\/[^\s]+$/.test(unsafe)) {
@@ -142,6 +159,9 @@
     function handleFileSelect(event) {
         const fileInput = event.target;
         const file = fileInput.files[0];
+        handleFileUpload(file);
+    }
+    function handleFileUpload(file){
     
         if (!file) {
             toast('请选择一个文件', true);
