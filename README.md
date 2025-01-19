@@ -51,6 +51,8 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
 1. 克隆项目：
 ```bash   
    git clone https://github.com/jiweiyx/only10chat.git
+```
+```bash
    cd only10chat
 ```
 
@@ -73,8 +75,8 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
 
 
 5. 在浏览器中访问：
-   - 主页：http://<your-server-ip>:8080
-   - 聊天室：http://<your-server-ip>:8080/chat
+   - 主页：`http://<your-server-ip>:8080`
+   - 聊天室：`http://<your-server-ip>:8080/chat`
 
 ## 使用说明
 
