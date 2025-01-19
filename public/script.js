@@ -557,9 +557,10 @@
         if (chatBox.children.length > 10) {
             chatBox.removeChild(chatBox.firstChild); 
         }
-        requestAnimationFrame(() => {
+        chatBox.scrollTop = chatBox.scrollHeight;
+        setTimeout(() => {
             chatBox.scrollTop = chatBox.scrollHeight;
-        });
+        }, 100);
     }
     async function handleCancel(localUploadId,progressBar) {
         if (!currentFileId.get(localUploadId)) return;
