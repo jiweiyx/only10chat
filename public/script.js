@@ -70,7 +70,18 @@
     }
     function generateLocalUploadId() {
         return `upload_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    }  
+    }
+    function formatFileSize(sizeInBytes) {
+        if (sizeInBytes < 1024) {
+          return `${sizeInBytes} B`;
+        } else if (sizeInBytes < 1024 * 1024) {
+          return `${(sizeInBytes / 1024).toFixed(2)} KB`;
+        } else if (sizeInBytes < 1024 * 1024 * 1024) {
+          return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
+        } else {
+          return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+        }
+      }  
     async function startRecording(e) {
         if (e) e.preventDefault();
         if (isRecording) return;
@@ -163,7 +174,7 @@
             break;
 
         case 'file':
-            displayMessage(`文件${file.name}`, 'sent', new Date().toISOString(), myID, localUploadId);
+            displayMessage(`名称：${file.name}</br>大小：${formatFileSize(file.size)}</br>进度：<span id='progress_${localUploadId}'>0%</span>`, 'sent', new Date().toISOString(), myID, localUploadId);
             break;
     }
     uploadFileInBackground(localUploadId);        
@@ -212,22 +223,23 @@
                 const result = await response.json();
                 currentUpload.uploadedSize = result.uploadedSize || (start + chunk.size);
                 const progress = (currentUpload.uploadedSize / file.size) * 100;
-                // 更新进度条显示
                 const progressContainer = progressDisplayBar?.parentElement;
-                
+                const progessSpan = document.getElementById(`progress_${localUploadId}`);
                 if (progressDisplayBar) {
                     progressDisplayBar.style.width = `${progress}%`;
+                    if(progessSpan){
+                        progessSpan.textContent = `${progress.toFixed(2)}%`;
+                    }
                 }
                 if (result.status === 'complete') {
                     // 上传完成后的处理
                     progressContainer.remove(); 
                     const fullUrl = window.location.protocol + '//' + window.location.host + result.link;
-                    sendMessage(fullUrl, 'file');
+                    sendMessage(fullUrl, 'file',localUploadId);
                     isPaused.delete(localUploadId);
                     lastUploadedPart.delete(localUploadId);
                     currentFileId.delete(localUploadId);
                     fileInput.value='';
-
                 }
             }
         } catch (error) {
@@ -307,7 +319,7 @@
             toast(`显示消息出错${error}`, true);
         }
     }     
-    function sendMessage(content, type = 'text') {
+    function sendMessage(content, type = 'text',fileID) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             toast('Connection not available', true);
             return;
@@ -330,6 +342,13 @@
             case 'audio':
                 displayAudio(content, 'sent', message.timestamp, myID);
                 break;
+            case 'file':
+                if(fileID != 'null'){
+                    fileElement = document.getElementById(`progress_${fileID}`);
+                    if(fileElement){
+                        fileElement.parentElement.innerHTML=`<a href='${content}' target="_blank"'>${content}</a>`;
+                    }
+                }
         }
     }
     function displayUploadProgressBar(uploadID, containerDiv) {
@@ -367,7 +386,11 @@
         
         const textDiv = document.createElement('div');
         textDiv.className = 'message-text';
-        textDiv.innerHTML = escapeHtml(content);
+        if (type === 'sent' && localUploadId !== 'null')  {
+            textDiv.innerHTML = content;
+        }else{
+            textDiv.innerHTML = escapeHtml(content);
+        }
         textBody.appendChild(textDiv);
         
         const timeDiv = document.createElement('div');
