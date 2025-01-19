@@ -49,25 +49,27 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
 
 ### 安装步骤：
 1. 克隆项目：
-   
-   `git clone https://github.com/jiweiyx/only10chat.git`
-   然后进入文件夹：
-   `cd only10chat`
-
+```bash   
+   git clone https://github.com/jiweiyx/only10chat.git
+   cd only10chat
+```
 
 2. 安装依赖：
-   
-   `npm install`
-
+```bash   
+   npm install
+```
 
 3. 启动 MongoDB 服务（如果尚未启动）：
    
-   `sudo service mongod start`
-
+```bash
+   sudo service mongod start
+```
 
 4. 启动 Node.js 服务：
    
-   `npm start`
+```bash
+   npm start
+```   
 
 
 5. 在浏览器中访问：
