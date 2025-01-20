@@ -57,11 +57,10 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}  
         run: |
-          # 确保 cosign 已安装
           curl -sSL https://github.com/sigstore/cosign/releases/download/v1.10.0/cosign-linux-amd64 -o cosign
           chmod +x cosign
           sudo mv cosign /usr/local/bin/cosign
-          
-          # 签名操作
-          echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+          echo "${COSIGN_KEY}" > cosign.key
+          cosign sign --key cosign.key --yes ${TAGS}@${DIGEST}
