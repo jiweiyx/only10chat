@@ -92,8 +92,8 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
 
 ## Demo
 
-[十条](https://only10.chat)
+[only10.chat](https://only10.chat)
 
 ## License
 
-本项目采用 MIT 开源协议，详见 [LICENSE](./LICENSE) 文件。
+本项目采用 GPL-3.0 开源协议，详见 [LICENSE](./LICENSE) 文件。
