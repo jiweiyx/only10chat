@@ -1,23 +1,27 @@
-# 1. 使用 Node.js 官方镜像（Ubuntu版本）
-FROM node:20-buster
+# Use the official Node.js image (with Node.js v20)
+FROM node:20
 
-# 2. 安装 MongoDB 和其他依赖
-RUN apt-get update && \
-    apt-get install -y mongodb && \
-    apt-get clean
-
-# 3. 设置工作目录
+# Set the working directory
 WORKDIR /app
 
-# 4. 安装应用依赖
-COPY package*.json ./
+# Install required dependencies and MongoDB from the official MongoDB repo
+RUN apt-get update && \
+    apt-get install -y gnupg wget && \
+    wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - && \
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/debian buster/mongodb-org/4.4 main" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list && \
+    apt-get update && \
+    apt-get install -y mongodb-org && \
+    apt-get clean
+
+# Expose the required ports (8080 for Node.js, 27017 for MongoDB)
+EXPOSE 8080 27017
+
+# Install dependencies for your Node.js app
+COPY package.json .
 RUN npm install
 
-# 5. 复制应用源代码
+# Copy the rest of your application code
 COPY . .
 
-# 6. 暴露 8080 端口
-EXPOSE 8080
-
-# 7. 设置容器启动时的命令
-CMD service mongod start && npm start
+# Start MongoDB and your Node.js application
+CMD service mongodb start && npm start
