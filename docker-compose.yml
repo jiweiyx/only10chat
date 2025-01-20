@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # MongoDB 服务
+  mongodb:
+    image: mongo:8.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"  # 映射本地 27017 端口到容器内的 27017
+    volumes:
+      - mongo_data:/data/db  # 保持数据持久化
+    networks:
+      - app_network
+
+  # Node.js 应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile  # 指定你的 Dockerfile 路径
+    container_name: only10chat
+    ports:
+      - "8080:8080"  # 映射本地 8080 端口到容器内的 8080
+    depends_on:
+      - mongodb  # 确保在 Node.js 容器启动前 MongoDB 容器已经启动
+    networks:
+      - app_network
+
+volumes:
+  mongo_data:  # 用于数据持久化
+
+networks:
+  app_network:  # 创建一个网络使 MongoDB 和 Node.js 应用能够互相访问
