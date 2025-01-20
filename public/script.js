@@ -199,14 +199,56 @@
     }
     uploadFileInBackground(localUploadId);        
     }
+    async function calculateFileMD5(file) {
+        const spark = new SparkMD5.ArrayBuffer();
+        const fileSize = file.size;
+    
+        // 如果文件小于 1MB，直接计算整个文件的 MD5
+        if (fileSize < 1 * 1024 * 1024) {
+            const arrayBuffer = await file.arrayBuffer();
+            spark.append(arrayBuffer);
+        } else {
+            // 文件大于 1MB，计算前 512KB 和最后 512KB 的 MD5
+            const firstPart = file.slice(0, 512 * 1024);
+            const lastPart = file.slice(fileSize - 512 * 1024);
+    
+            const firstPartBuffer = await firstPart.arrayBuffer();
+            const lastPartBuffer = await lastPart.arrayBuffer();
+    
+            spark.append(firstPartBuffer);
+            spark.append(lastPartBuffer);
+        }
+    
+        return spark.end(); // 返回计算出的 MD5 值
+    }
     async function uploadFileInBackground(localUploadId) {
-        file = currentFileId.get(localUploadId);
+        const file = currentFileId.get(localUploadId);
         const currentUpload = { file, uploadedSize: 0 };
         const encodedFileName = encodeURIComponent(file.name);
         const totalParts = Math.ceil(file.size / CHUNK_SIZE);       
         const progressDisplayBar = document.getElementById(localUploadId);
-        isPaused.set(localUploadId,false);
+        isPaused.set(localUploadId, false);
+        const md5Hash = await calculateFileMD5(file);
+        console.log(`MD5 of the file: ${md5Hash}`); 
         try {
+            const md5Response = await fetch(`/upload/check?md5hash=${md5Hash}`, {
+                method: 'GET',
+            });
+            const md5Result = await md5Response.json();
+            if (md5Result) {
+                const fullUrl = md5Result.content;
+                progressDisplayBar.parentElement.remove();
+                fileElement = document.getElementById(`progress_${localUploadId}`);
+                    if(fileElement){
+                        fileElement.parentElement.innerHTML=`<a href='${fullUrl}' target="_blank"'>${fullUrl}</a>`;
+                    }
+                return;
+            } 
+        } catch (error) {
+            console.error('Error checking file MD5:', error);
+        }
+        
+        try{
             let partIndex;
             for (partIndex = lastUploadedPart.get(localUploadId); partIndex < totalParts; partIndex++) {
                 if (isPaused.get(localUploadId)) {
@@ -218,7 +260,7 @@
                     cancelButton.style.visibility = "visible";
                     return;
                 }
-                
+    
                 const start = partIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
                 const chunk = file.slice(start, end);
@@ -237,7 +279,6 @@
     
                 if (!response.ok) {
                     throw new Error(`上传失败: ${response.status} ${response.statusText}`);
-                    
                 }
     
                 const result = await response.json();
@@ -247,19 +288,20 @@
                 const progessSpan = document.getElementById(`progress_${localUploadId}`);
                 if (progressDisplayBar) {
                     progressDisplayBar.style.width = `${progress}%`;
-                    if(progessSpan){
+                    if (progessSpan) {
                         progessSpan.textContent = `${progress.toFixed(2)}%`;
                     }
                 }
+    
                 if (result.status === 'complete') {
                     // 上传完成后的处理
-                    progressContainer.remove(); 
+                    progressContainer.remove();
                     const fullUrl = window.location.protocol + '//' + window.location.host + result.link;
-                    sendMessage(fullUrl, 'file',localUploadId);
+                    sendMessage(fullUrl, 'file', localUploadId,md5Hash);
                     isPaused.delete(localUploadId);
                     lastUploadedPart.delete(localUploadId);
                     currentFileId.delete(localUploadId);
-                    fileInput.value='';
+                    fileInput.value = '';
                 }
             }
         } catch (error) {
@@ -269,7 +311,7 @@
                 progressDisplayBar.textContent = '上传失败';
             }
         }
-    }     
+    }    
     function handleTextSubmit() {
         const content = messageInput.value.trim();
         if (content) {
@@ -339,7 +381,7 @@
             toast(`显示消息出错${error}`, true);
         }
     }     
-    function sendMessage(content, type = 'text',fileID) {
+    function sendMessage(content, type = 'text',fileID,md5Hash) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             toast('Connection not available', true);
             return;
@@ -350,7 +392,8 @@
             chatId,
             type,
             content,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            md5Hash
         };
 
         socket.send(JSON.stringify(message));

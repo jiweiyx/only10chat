@@ -125,7 +125,8 @@ function handleMessage(ws, message, clientInfo) {
             senderId: clientInfo.id,
             content: parsedMessage.content,
             type: parsedMessage.type,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            md5Hash: parsedMessage.md5Hash
         });
 
     } catch (error) {

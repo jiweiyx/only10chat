@@ -27,7 +27,25 @@ async function connectToDB() {
         throw error;
     }
 }
+async function checkMd5Hash(md5Hash) {
+    try {
+        const { collection } = await connectToDB();
 
+        // 查找 md5Hash 是否存在
+        const existingRecord = await collection.findOne({ md5Hash });
+
+        if (existingRecord) {
+            // 如果找到匹配的记录，返回文件的 content (链接)
+            return existingRecord.content;
+        }
+
+        // 如果没有找到匹配的记录，返回 null
+        return null;
+    } catch (err) {
+        console.error('Error checking md5Hash:', err);
+        return null;
+    }
+}
 async function insertChat(newChat) {
     try {
         const { collection } = await connectToDB();
@@ -137,4 +155,5 @@ module.exports = {
     insertChat,
     showHistory,
     closeDBConnection,
+    checkMd5Hash,
 };

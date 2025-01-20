@@ -3,6 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { checkMd5Hash } = require('./db');
 
 const uploadRouter = express.Router();
 const uploadFolder = path.join(__dirname, 'public', 'upload');
@@ -51,6 +52,24 @@ uploadRouter.delete('/cancel/:fileId', (req, res) => {
         
     } else {
         res.status(200).json({ message: 'Upload cancelled successfully (no file found)' });
+    }
+});
+uploadRouter.get('/check', async (req, res) => {
+    const md5Hash = req.query.md5hash;
+    if (!md5Hash) {
+        return res.status(400).json({ error: 'MD5 hash is required' });
+    }
+
+    try {
+        const filelink = await checkMd5Hash(md5Hash);
+        if (filelink) {
+            return res.json({ content: filelink });
+        } else {
+            return res.status(404).json({ message: 'File not found' });
+        }
+    } catch (err) {
+        console.error('Error checking file MD5:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
