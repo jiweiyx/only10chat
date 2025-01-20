@@ -2,17 +2,9 @@
 FROM node:20-buster
 
 # 2. 安装 MongoDB 和其他依赖
-RUN apt-get update && apt-get install -y \
-  gnupg \
-  wget \
-  ca-certificates \
-  lsb-release \
-  sudo \
-  && wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - \
-  && echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/4.4 main" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list \
-  && apt-get update \
-  && apt-get install -y mongodb-org \
-  && rm -rf /var/lib/apt/lists/*  # 清理缓存以减少镜像大小
+RUN apt-get update && \
+    apt-get install -y mongodb && \
+    apt-get clean
 
 # 3. 设置工作目录
 WORKDIR /app
