@@ -234,16 +234,22 @@
             const md5Response = await fetch(`/upload/check?md5hash=${md5Hash}`, {
                 method: 'GET',
             });
+            if (!md5Response.ok) {
+                throw new Error(`Error: ${md5Response.status}`);
+            }
             const md5Result = await md5Response.json();
-            if (md5Result) {
+            if (md5Result && md5Result.content) {
                 const fullUrl = md5Result.content;
                 progressDisplayBar.parentElement.remove();
-                fileElement = document.getElementById(`progress_${localUploadId}`);
-                    if(fileElement){
-                        fileElement.parentElement.innerHTML=`<a href='${fullUrl}' target="_blank"'>${fullUrl}</a>`;
-                    }
+                sendMessage(fullUrl, 'file', localUploadId, md5Hash);
+                isPaused.delete(localUploadId);
+                lastUploadedPart.delete(localUploadId);
+                currentFileId.delete(localUploadId);
+                fileInput.value = '';
                 return;
-            } 
+            } else {
+                console.error('MD5 result is missing content');
+            }
         } catch (error) {
             console.error('Error checking file MD5:', error);
         }
