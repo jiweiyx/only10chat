@@ -229,7 +229,6 @@
         const progressDisplayBar = document.getElementById(localUploadId);
         isPaused.set(localUploadId, false);
         const md5Hash = await calculateFileMD5(file);
-        console.log(`MD5 of the file: ${md5Hash}`); 
         try {
             const md5Response = await fetch(`/upload/check?md5hash=${md5Hash}`, {
                 method: 'GET',
