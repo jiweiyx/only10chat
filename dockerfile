@@ -1,18 +1,32 @@
-# 使用官方的 Node.js 镜像（Node.js v20）
-FROM node:20
+# 使用最新的 Alpine 作为基础镜像
+FROM alpine:latest
+
+# 安装 Node.js 和 MongoDB 及其依赖
+RUN apk update && \
+    apk add --no-cache \
+    nodejs \
+    npm \
+    mongodb \
+    bash \
+    && rm -rf /var/cache/apk/*  # 清理缓存以减少镜像体积
+
+# 创建目录用于存储 MongoDB 数据
+RUN mkdir -p /data/db
 
 # 设置工作目录
 WORKDIR /app
 
-# 安装应用程序的依赖项
-COPY package.json .
-RUN npm install
+# 将 package.json 和 package-lock.json 复制到容器中
+COPY package*.json ./
 
-# 复制应用程序的其余代码
+# 安装 Node.js 应用的依赖
+RUN npm install --production
+
+# 复制应用代码到容器
 COPY . .
 
-# 开放应用服务的端口（8080）
+# 暴露Node.js 端口
 EXPOSE 8080
 
-# 启动 Node.js 应用
-CMD ["npm", "start"]
+# 启动 MongoDB 和 Node.js 应用
+CMD ["sh", "-c", "mongod & node index.js"]
