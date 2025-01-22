@@ -2,7 +2,16 @@
 FROM alpine:latest
 
 # 安装 Node.js 和 MongoDB 及其依赖
-RUN apk update && apk add --no-cache nodejs npm mongodb-tools bash && rm -rf /var/cache/apk/*
+RUN apk update && \
+    apk add --no-cache \
+    nodejs \
+    npm \
+    mongodb-tools \
+    bash && \
+    echo "http://dl-cdn.alpine-linux.org/alpine/v3.9/main" >> /etc/apk/repositories && \
+    echo "http://dl-cdn.alpine-linux.org/alpine/v3.9/community" >> /etc/apk/repositories && \
+    apk add --no-cache mongodb=4.0.3-r0 && \
+    rm -rf /var/cache/apk/*
 
 # 创建目录用于存储 MongoDB 数据
 RUN mkdir -p /data/db
@@ -19,8 +28,8 @@ RUN npm install --production
 # 复制应用代码到容器
 COPY . .
 
-# 暴露Node.js 端口
+# 暴露 Node.js 端口
 EXPOSE 8080
 
 # 启动 MongoDB 和 Node.js 应用
-CMD ["sh", "-c", "mongod & node index.js"]
+CMD ["sh", "-c", "mongod & node server.js"]
