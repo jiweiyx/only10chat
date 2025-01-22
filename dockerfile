@@ -2,13 +2,7 @@
 FROM alpine:latest
 
 # 安装 Node.js 和 MongoDB 及其依赖
-RUN apk update && \
-    apk add --no-cache \
-    nodejs \
-    npm \
-    mongodb \
-    bash \
-    && rm -rf /var/cache/apk/*  # 清理缓存以减少镜像体积
+RUN apk update && apk add --no-cache nodejs npm mongodb-tools bash && rm -rf /var/cache/apk/*
 
 # 创建目录用于存储 MongoDB 数据
 RUN mkdir -p /data/db
