@@ -1,155 +1,131 @@
-
-const { MongoClient, ObjectId } = require('mongodb');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs').promises; // 引入 fs 模块
 const cron = require('node-cron');  // 引入 node-cron 模块
 
+// SQLite3 数据库文件路径
+const dbFilePath = path.join(__dirname, 'chatdb.sqlite');
 
-// MongoDB 连接配置
-const url = 'mongodb://localhost:27017';
-const dbName = 'chatdb';  // 使用 'chatDb' 数据库
-const collectionName = 'chatCollection'; // 集合名称
-let clientConnection = null;
-let dbCollection = null;
+// 创建或连接数据库
+const db = new sqlite3.Database(dbFilePath);
 
-async function connectToDB() {
-    if (clientConnection && dbCollection) {
-        return { collection: dbCollection };
-    }
+// 创建聊天记录表（如果没有创建过）
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS chatCollection (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chatId TEXT,
+        senderId TEXT,
+        content TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        type TEXT,
+        md5Hash TEXT UNIQUE
+    )`);
+});
 
-    try {
-        clientConnection = await MongoClient.connect(url);
-        const db = clientConnection.db(dbName);
-        dbCollection = db.collection(collectionName);
-        return { collection: dbCollection };
-    } catch (error) {
-        console.error('MongoDB connection error:', error);
-        throw error;
-    }
-}
-async function checkMd5Hash(md5Hash) {
-    try {
-        const { collection } = await connectToDB();
-
-        // 查找 md5Hash 是否存在
-        const existingRecord = await collection.findOne({ md5Hash });
-
-        if (existingRecord) {
-            // 如果找到匹配的记录，返回文件的 content (链接)
-            return existingRecord.content;
-        }
-
-        // 如果没有找到匹配的记录，返回 null
-        return null;
-    } catch (err) {
-        console.error('Error checking md5Hash:', err);
-        return null;
-    }
-}
+// 插入新聊天记录
 async function insertChat(newChat) {
-    try {
-        const { collection } = await connectToDB();
-
-        // 验证新聊天数据是否有效
+    return new Promise((resolve, reject) => {
         if (!newChat.content || !newChat.chatId || !newChat.senderId) {
-            throw new Error('Invalid chat data');
+            return reject('Invalid chat data');
         }
         newChat.content = newChat.content.trim();
 
-        // 插入新聊天记录
-        const result = await collection.insertOne(newChat);
+        const stmt = db.prepare("INSERT INTO chatCollection (chatId, senderId, content, type, md5Hash) VALUES (?, ?, ?, ?, ?)");
+        stmt.run(newChat.chatId, newChat.senderId, newChat.content, newChat.type, newChat.md5Hash, function (err) {
+            if (err) {
+                reject('Failed to insert chat: ' + err);
+            } else {
+                // 检查是否需要清理旧消息
+                cleanOldMessages(newChat.chatId);
+                resolve(this.lastID);  // 返回插入的 ID
+            }
+        });
+        stmt.finalize();
+    });
+}
 
-        // 检查是否需要清理旧消息
-        if (await collection.countDocuments({ chatId: newChat.chatId }) > 10) {
-            const oldestMessages = await collection
-                .find({ chatId: newChat.chatId })
-                .sort({ _id: 1 })
-                .limit(1)
-                .toArray();
-
-            if (oldestMessages.length > 0) {
-                const oldestMessage = oldestMessages[0];
-
-                // if file type is file or image, delete at file at same time
-                if ((oldestMessage.type === 'file' || oldestMessage.type === 'image')) {
-                    const fileName = path.basename(oldestMessage.content); // 提取文件名
-                    const filePath = path.join(__dirname, 'public', 'upload', fileName);
-                    try {
-                        await fs.unlink(filePath); // 删除文件
-                    } catch (fileErr) {
-                        console.error(`Failed to delete file: ${filePath}`, fileErr);
+// 清理每个聊天室的消息数，保持最新的 10 条记录
+function cleanOldMessages(chatId) {
+    db.all("SELECT COUNT(*) as count FROM chatCollection WHERE chatId = ?", [chatId], (err, rows) => {
+        if (err) {
+            console.error('Error checking message count:', err);
+            return;
+        }
+        if (rows[0].count > 10) {
+            db.all("SELECT * FROM chatCollection WHERE chatId = ? ORDER BY timestamp ASC LIMIT 1", [chatId], (err, oldestMessages) => {
+                if (err) {
+                    console.error('Error fetching oldest messages:', err);
+                    return;
+                }
+                if (oldestMessages.length > 0) {
+                    const oldestMessage = oldestMessages[0];
+                    // 如果是文件或图片类型，删除文件
+                    if (oldestMessage.type === 'file' || oldestMessage.type === 'image') {
+                        const fileName = path.basename(oldestMessage.content); // 提取文件名
+                        const filePath = path.join(__dirname, 'public', 'upload', fileName);
+                        fs.unlink(filePath)
+                            .catch(fileErr => console.error(`Failed to delete file: ${filePath}`, fileErr));
                     }
+                    // 删除旧的数据库记录
+                    db.run("DELETE FROM chatCollection WHERE id = ?", [oldestMessage.id], (err) => {
+                        if (err) {
+                            console.error('Error deleting old message:', err);
+                        }
+                    });
                 }
-
-                // 删除旧的数据库记录
-                await collection.deleteOne({ _id: oldestMessage._id });
-            }
+            });
         }
-
-        return result.insertedId;
-    } catch (err) {
-        console.error('Failed to insert new chat', err);
-        throw err;
-    }
+    });
 }
 
+// 查询聊天记录
 async function showHistory(chatId) {
-    try {
-        const { collection } = await connectToDB();
-        const chatHistory = await collection
-            .find({chatId: chatId})
-            .toArray();
-        return chatHistory;
-    } catch (err) {
-        console.error(`Error finding messages for chatId: ${chatId}, ${err}`);
-        return [];
-    }
-    // Remove the finally block that closes the connection
-}
-
-async function closeDBConnection() {
-    try {
-        if (clientConnection) {
-            console.log('Closing MongoDB connection...');
-            await clientConnection.close(); // 异步关闭连接
-            console.log('MongoDB connection closed.');
-            clientConnection = null; // 清理引用
-        } else {
-            console.warn('MongoDB connection is already closed or not initialized.');
-        }
-    } catch (error) {
-        console.error('Error while closing MongoDB connection:', error);
-    }
-}
-// 定时任务：每天检查并删除超过30天的记录
-cron.schedule('0 0 * * *', async () => {
-    const { collection } = await connectToDB();
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-
-    try {
-        // 查找超过30天的消息
-        const oldMessages = await collection.find({ timestamp: { $lt: thirtyDaysAgo } }).toArray();
-
-        for (const message of oldMessages) {
-            // 如果是文件或图片类型，删除对应文件
-            if (message.type === 'file' || message.type === 'image') {
-                const fileName = path.basename(message.content); // 提取文件名
-                const filePath = path.join(__dirname, 'public', 'upload', fileName);
-                try {
-                    await fs.unlink(filePath); // 删除文件
-                } catch (fileErr) {
-                    console.error(`Failed to delete file: ${filePath}`, fileErr);
-                }
+    return new Promise((resolve, reject) => {
+        db.all("SELECT * FROM chatCollection WHERE chatId = ? ORDER BY timestamp ASC", [chatId], (err, rows) => {
+            if (err) {
+                reject('Error retrieving chat history: ' + err);
+            } else {
+                resolve(rows);
             }
+        });
+    });
+}
 
-            // 删除过期的消息
-            await collection.deleteOne({ _id: message._id });
+// 检查 md5Hash 是否存在
+async function checkMd5Hash(md5Hash) {
+    return new Promise((resolve, reject) => {
+        db.get("SELECT content FROM chatCollection WHERE md5Hash = ?", [md5Hash], (err, row) => {
+            if (err) {
+                reject('Error checking md5Hash: ' + err);
+            } else {
+                resolve(row ? row.content : null);  // 返回对应的 content 或 null
+            }
+        });
+    });
+}
+
+// 定时任务：每天检查并删除超过30天的记录
+cron.schedule('0 0 * * *', () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    db.run("DELETE FROM chatCollection WHERE timestamp < ?", [thirtyDaysAgo.toISOString()], (err) => {
+        if (err) {
+            console.error('Error during scheduled cleanup:', err);
+        } else {
+            console.log('Old messages deleted successfully.');
         }
-    } catch (err) {
-        console.error('Error during scheduled cleanup:', err);
-    }
+    });
 });
+
+// 关闭数据库连接
+function closeDBConnection() {
+    db.close((err) => {
+        if (err) {
+            console.error('Error closing database:', err);
+        } else {
+            console.log('Database connection closed.');
+        }
+    });
+}
 
 module.exports = {
     insertChat,

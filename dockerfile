@@ -1,20 +1,25 @@
-# 使用 Node.js 官方镜像作为基础镜像
-FROM node:22
+# 1. 构建阶段
+FROM node:22 AS build
 
-# 创建并设置工作目录
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# 拷贝 package.json 和 package-lock.json
+# 只复制 package.json 和 package-lock.json，安装生产依赖
 COPY package*.json ./
+RUN npm install --production
 
-# 安装项目的依赖
-RUN npm install
-
-# 拷贝整个项目文件到工作目录
+# 复制项目文件
 COPY . .
 
-# 启动 Node.js 应用
-CMD ["node", "server.js"]
+# 2. 运行阶段
+FROM node:22-alpine
 
-# 暴露应用运行端口
+WORKDIR /app
+
+# 从构建阶段复制需要的文件
+COPY --from=build /app ./
+
+# 设置容器暴露端口为 8080
 EXPOSE 8080
+
+# 设置默认的容器启动命令
+CMD ["node", "server.js"]
