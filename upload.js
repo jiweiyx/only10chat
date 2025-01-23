@@ -65,13 +65,14 @@ uploadRouter.get('/check', async (req, res) => {
         if (filelink) {
             return res.json({ content: filelink });
         } else {
-            return res.status(404).json({ message: 'File not found' });
+            return res.status(200).json({ content: '' }); // 空内容表示文件未找到
         }
     } catch (err) {
         console.error('Error checking file MD5:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 uploadRouter.post('/', async (req, res) => {
     try {

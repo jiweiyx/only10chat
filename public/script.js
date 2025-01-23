@@ -234,20 +234,25 @@
                 method: 'GET',
             });
             if (!md5Response.ok) {
-                throw new Error(`Error: ${md5Response.status}`);
-            }
-            const md5Result = await md5Response.json();
-            if (md5Result && md5Result.content) {
-                const fullUrl = md5Result.content;
-                progressDisplayBar.parentElement.remove();
-                sendMessage(fullUrl, 'file', localUploadId, md5Hash);
-                isPaused.delete(localUploadId);
-                lastUploadedPart.delete(localUploadId);
-                currentFileId.delete(localUploadId);
-                fileInput.value = '';
-                return;
+                throw new Error(`Unexpected response status: ${md5Response.status}`);
             } else {
-                console.error('MD5 result is missing content');
+                const md5Result = await md5Response.json();
+                if (md5Result) {
+                    if (md5Result.content === '') {
+                    } else {
+                        const fullUrl = md5Result.content;
+                        progressDisplayBar.parentElement.remove();
+                        sendMessage(fullUrl, 'file', localUploadId, md5Hash);
+                        isPaused.delete(localUploadId);
+                        lastUploadedPart.delete(localUploadId);
+                        currentFileId.delete(localUploadId);
+                        fileInput.value = '';
+                        return;
+                    }
+                } else {
+                    console.error('MD5 result is missing content');
+                    return;
+                }
             }
         } catch (error) {
             console.error('Error checking file MD5:', error);
