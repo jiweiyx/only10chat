@@ -238,8 +238,7 @@
             } else {
                 const md5Result = await md5Response.json();
                 if (md5Result) {
-                    if (md5Result.content === '') {
-                    } else {
+                    if (md5Result.content !== '') {
                         const fullUrl = md5Result.content;
                         progressDisplayBar.parentElement.remove();
                         sendMessage(fullUrl, 'file', localUploadId, md5Hash);
