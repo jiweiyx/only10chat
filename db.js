@@ -18,7 +18,7 @@ db.serialize(() => {
         content TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         type TEXT,
-        md5Hash TEXT UNIQUE
+        md5Hash TEXT
     )`);
 });
 
