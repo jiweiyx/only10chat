@@ -8,12 +8,12 @@ only10chat 是一个简洁的匿名聊天与文件传输平台，旨在为用户
 
 ## 项目实现路径
 
-only10chat 采用前后端分离的设计，前端通过浏览器与后端服务交互。后端基于 Node.js，数据库使用 MongoDB 来存储用户的匿名聊天记录和文件信息。
+only10chat 采用前后端分离的设计，前端通过浏览器与后端服务交互。后端基于 Node.js，数据库使用 sqlite3 来存储用户的匿名聊天记录和文件信息。
 
 ### 技术栈：
 - **前端**：HTML, CSS, JavaScript (Vue.js 或 React)
 - **后端**：Node.js
-- **数据库**：MongoDB
+- **数据库**：Sqlite3
 - **文件上传**：支持最大 1GB 文件上传，带有断点续传功能
 - **聊天功能**：文字、图片、语音消息的实时传输
 - **聊天室管理**：每个聊天室最多只保留 10 条聊天记录，超过时自动清除
@@ -44,10 +44,9 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
 - **操作系统**：Ubuntu 或其他类 Unix 操作系统
 - **内存**：建议1GB以上
 - **CPU**：1 核即可
-- **数据库**：MongoDB（需要先安装并启动数据库）
 - **Node.js**：用于后端服务的运行
 
-### 安装步骤：
+### 安装步骤（nodejs）：
 1. 克隆项目：
 ```bash   
    git clone https://github.com/jiweiyx/only10chat.git
@@ -61,17 +60,23 @@ only10chat 采用前后端分离的设计，前端通过浏览器与后端服务
    npm install
 ```
 
-3. 启动 MongoDB 服务（如果尚未启动）：
-   
-```bash
-   sudo service mongod start
-```
-
-4. 启动 Node.js 服务：
+3. 启动 Node.js 服务：
    
 ```bash
    npm start
 ```   
+### 搭建步骤（docker）：
+1. 下载最新docker
+
+```bash
+   docker pull ghcr.io/jiweiyx/only10chat:latest
+```
+
+2. 建立一个container，用本地的80端口对接container的8080端口
+
+```bash
+    docker run -d --name only10chat ghcr.io/jiweiyx/only10chat:latest
+```
 
 
 5. 在浏览器中访问：
