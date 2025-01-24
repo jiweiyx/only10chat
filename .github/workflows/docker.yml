@@ -16,11 +16,11 @@ jobs:
       id-token: write
 
     steps:
-      # 1. Checkout the repository
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Log into GitHub container registry (GHCR)
+      # Log into the registry (GHCR)
       - name: Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@v2
         with:
@@ -28,17 +28,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Set up Docker Buildx
+      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 4. Debug: Show Buildx version and configuration
-      - name: Debug Buildx
-        run: |
-          docker buildx version
-          docker buildx inspect --bootstrap
+      # Clear any existing Docker build cache
+      - name: Clear Docker cache
+        run: docker builder prune --force
 
-      # 5. Build and push Docker image with platforms
+      # Build and push Docker image with multi-platform support
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -49,10 +47,8 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: manifest
+          provenance: false  # Disable attestation manifests to avoid unknown/unknown
 
-      # 6. Debug: Show resulting manifest information
-      - name: Inspect image manifest
-        run: |
-          echo "Inspecting the resulting Docker image manifest..."
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      # Inspect the resulting Docker image
+      - name: Inspect the resulting Docker image
+        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
