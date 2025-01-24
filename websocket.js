@@ -136,9 +136,26 @@ function handleMessage(ws, message, clientInfo) {
 }
 
 function handleError(ws, error, clientInfo) {
-    console.error(`Error from client ${clientInfo.id}:`, error);
+   
+    // Log more detailed error information
+    const errorDetails = {
+        timestamp: new Date().toISOString(),
+        clientId: clientInfo.id,
+        chatId: clientInfo.chatId,
+        errorMessage: error.message,
+        errorStack: error.stack
+    };
+    console.error('Detailed error information:', errorDetails);
+    // Notify client with more specific error message
+    sendErrorMessage(ws, 'Connection error occurred. Please refresh the page.');
+    
+    // Cleanup
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1011, 'Internal Server Error');
+    }
     clients.delete(ws);
 }
+
 
 function sendSystemMessage(ws, message) {
     if (ws.readyState === WebSocket.OPEN) {
@@ -171,7 +188,11 @@ function broadcast(chatId, message, sender = null) {
 
     clients.forEach((clientInfo, ws) => {
         if (sender !== ws && ws.readyState === WebSocket.OPEN && clientInfo.chatId === chatId) {
-            ws.send(messageString);
+            try {
+                ws.send(messageString);
+            } catch (error) {
+                console.error(`Failed to send message to client ${clientInfo.id}:`, error);
+            }
         }
     });
 }

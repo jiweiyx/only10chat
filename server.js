@@ -41,7 +41,7 @@ async function gracefulShutdown() {
     //close All Websocket connection
     closeWsConnection();
     
-    // Close MongoDB connection
+    // Close databse connection
     await closeDBConnection();
     
     // Close HTTP server

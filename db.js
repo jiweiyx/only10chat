@@ -7,8 +7,14 @@ const cron = require('node-cron');  // 引入 node-cron 模块
 const dbFilePath = path.join(__dirname, 'chatdb.sqlite');
 
 // 创建或连接数据库
-const db = new sqlite3.Database(dbFilePath);
-
+const db = new sqlite3.Database(dbFilePath, (err) => {
+    if (err) {
+        console.error('Database connection error:', err);
+    }
+});
+db.on('error', (err) => {
+    console.error('Database error:', err);
+});
 // 创建聊天记录表（如果没有创建过）
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS chatCollection (

@@ -326,6 +326,7 @@
         if (content) {
             sendMessage(content, 'text');
             messageInput.value = '';
+            messageInput.focus();
         }
     }
     function isValidImageURL(url) {
