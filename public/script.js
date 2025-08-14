@@ -104,40 +104,83 @@
         if (isRecording) return;
         
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            // iOS兼容性：使用更宽松的音频约束
+            const constraints = {
+                audio: {
+                    sampleRate: 44100,
+                    channelCount: 1,
+                    volume: 1.0
+                }
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            // iOS Safari检测和格式选择
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const mimeType = isIOS ? 'audio/mp4' : 'audio/webm;codecs=opus';
+            
+            // 检查浏览器是否支持选定的MIME类型
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                console.warn(`${mimeType} not supported, falling back to default`);
+                mediaRecorder = new MediaRecorder(stream);
+            } else {
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+            }
+            
             audioChunks = [];
             
             mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
+                if (event.data && event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
             };
             
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = () => {
-                    const base64Audio = reader.result;
-                    sendMessage(base64Audio, 'audio');
-                };
+                try {
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => {
+                        const base64Audio = reader.result;
+                        sendMessage(base64Audio, 'audio');
+                    };
                     stream.getTracks().forEach(track => track.stop());
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    toast('处理音频时出错', true);
+                }
             };
             
-            mediaRecorder.start(10); // Start recording with 10ms timeslice for smoother chunks
+            // iOS需要更短的timeslice
+            const timeSlice = isIOS ? 1000 : 10;
+            mediaRecorder.start(timeSlice);
+            
             isRecording = true;
             recordButton.classList.add('recording');
             recordButton.textContent = "发出";
-            // 设置最大录音时间为 60 秒
+            
+            // 设置最大录音时间为60秒
             recordingTimeout = setTimeout(() => {
                 if (isRecording) {
-                    stopRecording();  // 超过 60 秒自动停止录音
+                    stopRecording();
                 }
-            }, 60000);  // 60秒
+            }, 60000);
+            
         } catch (err) {
-            toast('没得到麦克风使用权限', true);
+            console.error('Recording error:', err);
+            
+            // iOS特殊错误处理
+            if (err.name === 'NotAllowedError') {
+                toast('请先在设置中允许麦克风访问权限', true);
+            } else if (err.name === 'NotFoundError') {
+                toast('未找到麦克风设备', true);
+            } else {
+                toast('无法访问麦克风: ' + err.message, true);
+            }
+            
             isRecording = false;
             recordButton.classList.remove('recording');
-            recordButton.textContent = "录音";
+            recordButton.textContent = "语音";
         }
     }
     function stopRecording() {

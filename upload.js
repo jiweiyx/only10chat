@@ -192,7 +192,17 @@ function generateUniqueFilename(originalFilename) {
     const baseName = path.basename(originalFilename, ext);
     const timestamp = Date.now();
     const randomString = crypto.randomBytes(4).toString('hex');
-    return `${baseName}_${timestamp}_${randomString}${ext}`;
+    
+    // iOS音频格式特殊处理
+    const isIOSAudio = originalFilename.toLowerCase().includes('.m4a') || 
+                      originalFilename.toLowerCase().includes('.mp4');
+    
+    let finalExt = ext;
+    if (isIOSAudio && ext.toLowerCase() === '.mp4') {
+        finalExt = '.m4a'; // 将iOS的mp4音频文件重命名为.m4a
+    }
+    
+    return `${baseName}_${timestamp}_${randomString}${finalExt}`;
 }
 
 module.exports = uploadRouter;
