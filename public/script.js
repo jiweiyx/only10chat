@@ -115,9 +115,8 @@
             
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             
-            // iOS Safari检测和格式选择
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            const mimeType = isIOS ? 'audio/mp4' : 'audio/webm;codecs=opus';
+            // 统一使用MP4格式以确保跨平台兼容性
+            const mimeType = 'audio/mp4;codecs=mp4a.40.2';
             
             // 检查浏览器是否支持选定的MIME类型
             if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -151,8 +150,8 @@
                 }
             };
             
-            // iOS需要更短的timeslice
-            const timeSlice = isIOS ? 1000 : 10;
+            // 统一timeslice设置
+            const timeSlice = 1000;
             mediaRecorder.start(timeSlice);
             
             isRecording = true;
@@ -169,7 +168,7 @@
         } catch (err) {
             console.error('Recording error:', err);
             
-            // iOS特殊错误处理
+            // 错误处理
             if (err.name === 'NotAllowedError') {
                 toast('请先在设置中允许麦克风访问权限', true);
             } else if (err.name === 'NotFoundError') {
