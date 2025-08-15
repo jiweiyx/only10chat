@@ -49,14 +49,26 @@ function setupWebSocket(server) {
                 // Add null check and ensure messages is an array
                 if (messages && Array.isArray(messages)) {
                     messages.forEach(message => {
-                        ws.send(JSON.stringify(message));
+                        // 处理文件路径，确保它们是完整的URL
+                        if ((message.type === 'file' || message.type === 'image' || message.type === 'audio') && 
+                            message.content && message.content.startsWith('/upload/')) {
+                            // 不在这里修改数据库中的内容，只在发送前处理
+                            const fullMessage = {...message};
+                            // 在WebSocket中不能直接访问window.location，所以使用请求的host
+                            const host = req.headers.host;
+                            const protocol = req.headers['x-forwarded-proto'] || 'http';
+                            fullMessage.content = `${protocol}://${host}${message.content}`;
+                            ws.send(JSON.stringify(fullMessage));
+                        } else {
+                            ws.send(JSON.stringify(message));
+                        }
                     });
                 } else {
-                    ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format.' }));
+                    ws.send(JSON.stringify({ type: 'error', content: 'Invalid message format.', timestamp: new Date().toISOString() }));
                 }
             })
             .catch(error => {
-                ws.send(JSON.stringify({ type: 'error', message: 'Failed to fetch messages.' }));
+                ws.send(JSON.stringify({ type: 'error', content: 'Failed to fetch messages.', timestamp: new Date().toISOString() }));
             });
     
         // 设置其他事件监听

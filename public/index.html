@@ -2,108 +2,63 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>十条 - 匿名聊天室</title>
     <link rel="icon" href="./favicon.png" type="image/png">
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f8f8f8;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            overflow-x: hidden;
         }
-        .container {
+        .welcome-container {
             width: 100%;
             max-width: 800px;
-            height: 98vh;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background-color: #fff;
-        }
-        header {
-            background-color: #e6e6e6;
-            color: #444;
-            text-align: center;
-            padding: 20px;
-            border-bottom: 1px solid #ccc;
-        }
-        header h1 {
-            margin: 0;
-            font-size: 2em;
-        }
-        section {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        .button {
-            display: block;
-            width: 100%;
-            max-width: 200px;
-            margin: 20px auto 0;
-            text-align: center;
-            background-color: #444;
-            color: #fff;
-            padding: 12px 20px;
-            font-size: 1.1em;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .button:hover {
-            background-color: #666;
-        }
-        footer {
-            background-color: #e6e6e6;
-            color: #555;
-            text-align: center;
-            padding: 10px;
-            border-top: 1px solid #ccc;
-        }
-        h2 {
-            color: #444;
-        }
-        p {
-            line-height: 1.6;
-            color: #555;
-        }
-        #copyright{
-            font-size: xx-small;
+            box-sizing: border-box;
         }
     </style>
 </head>
-<body>
+<body class="home-body">
+    <div class="welcome-container">
+        <header class="welcome-header">
+            <h1><i class="fas fa-comments"></i> 十条</h1>
+            <p>聊天就要小而美</p>
+        </header>
 
-<div class="container">
-    <header>
-        <h1>十条</h1>
-        <p>聊天就要小而美</p>
-    </header>
+        <main class="welcome-content">
+            <div class="welcome-section">
+                <h2>关于十条</h2>
+                
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <p><i class="fas fa-magic"></i> <strong>独特设计：</strong>每个聊天室仅保留最新的10条聊天记录，让对话保持简洁和专注。</p>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <p><i class="fas fa-user-check"></i> <strong>无需注册：</strong>打开即用，没有繁琐的注册流程，立即开始聊天。</p>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <p><i class="fas fa-share-alt"></i> <strong>轻松分享：</strong>分享聊天室链接即可邀请朋友加入，畅所欲言。</p>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <p><i class="fas fa-file-upload"></i> <strong>文件传输：</strong>支持图片、音频、视频等多种文件格式，简单快捷的文件分享工具。</p>
+                    </div>
+                </div>
 
-    <section>
-        <h2>关于十条</h2>
-        <p>“十条”是一个独特的匿名聊天室平台，每个聊天室仅保留最新的10条聊天记录。</p>
-        <p>无须注册、打开即用。分享聊天室链接即可邀请朋友加入，畅所欲言，轻松沟通。</p>
-        <p>也可以做为简单快捷的文件传递和分享工具。</p>
-        <p>点击下方按钮，新建一个分享窗口，探索一个自由、小而美的交流空间。</p>
+                <button class="welcome-button" onclick="window.location.href='./chat'">
+                    <i class="fas fa-plus-circle"></i> 新建聊天室
+                </button>
+            </div>
+        </main>
 
-        <button class="button" onclick="window.location.href='./chat'">新建聊天室</button>
-    </section>
-    <footer>
-        <p>十条 - 随意分享，过目就忘 </p>
-        <p id="copyright">版权所有 &copy; 2025</p>
-    </footer>
-</div>
-
+        <footer class="welcome-footer">
+            <p><i class="fas fa-heart"></i> 十条 - 随意分享，过目就忘</p>
+            <p class="copyright">版权所有 &copy; 2025</p>
+        </footer>
+    </div>
 </body>
 </html>

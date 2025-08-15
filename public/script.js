@@ -104,6 +104,39 @@
         if (isRecording) return;
         
         try {
+            // 检查是否在安全上下文中运行（HTTPS或localhost）
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                console.warn('媒体设备访问需要安全上下文（HTTPS或localhost）');
+                toast('Chrome浏览器要求在HTTPS或localhost环境下才能访问麦克风。请使用localhost访问或配置HTTPS。', true);
+                return;
+            }
+            
+            // 检查navigator.mediaDevices是否存在
+            if (!navigator.mediaDevices) {
+                console.warn('navigator.mediaDevices不存在，尝试使用旧版API');
+                // 尝试使用旧版API
+                navigator.mediaDevices = {};
+            }
+
+            // 检查getUserMedia方法是否存在
+            if (!navigator.mediaDevices.getUserMedia) {
+                console.warn('getUserMedia方法不存在，尝试使用旧版API');
+                navigator.mediaDevices.getUserMedia = function(constraints) {
+                    // 首先尝试使用旧版的navigator.getUserMedia
+                    const getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+                    
+                    if (!getUserMedia) {
+                        console.error('浏览器不支持任何版本的getUserMedia API');
+                        return Promise.reject(new Error('浏览器不支持getUserMedia API'));
+                    }
+                    
+                    // 将旧版API包装成Promise
+                    return new Promise(function(resolve, reject) {
+                        getUserMedia.call(navigator, constraints, resolve, reject);
+                    });
+                };
+            }
+            
             // iOS兼容性：使用更宽松的音频约束
             const constraints = {
                 audio: {
@@ -113,7 +146,15 @@
                 }
             };
             
+            console.log('尝试访问麦克风...');
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('麦克风访问成功');
+            
+            // 检查MediaRecorder是否存在
+            if (typeof MediaRecorder === 'undefined') {
+                console.error('浏览器不支持MediaRecorder API');
+                throw new Error('浏览器不支持MediaRecorder API');
+            }
             
             // 统一使用MP4格式以确保跨平台兼容性
             const mimeType = 'audio/mp4;codecs=mp4a.40.2';
@@ -173,6 +214,10 @@
                 toast('请先在设置中允许麦克风访问权限', true);
             } else if (err.name === 'NotFoundError') {
                 toast('未找到麦克风设备', true);
+            } else if (err.name === 'SecurityError') {
+                toast('安全错误：Chrome浏览器要求在HTTPS或localhost环境下才能访问麦克风', true);
+            } else if (err.message && err.message.includes('getUserMedia')) {
+                toast('浏览器不支持或禁用了麦克风访问。如果使用Chrome，请确保使用localhost或HTTPS访问。', true);
             } else {
                 toast('无法访问麦克风: ' + err.message, true);
             }
@@ -394,9 +439,18 @@
             switch (message.type) {
                 case 'file':
                     if (isValidImageURL(message.content)) {
-                        displayImage(message.content, senderType, message.timestamp, message.senderId);
+                        // 确保图片URL是完整的，如果是相对路径则转换为绝对路径
+                        let imageUrl = message.content;
+                        if (imageUrl.startsWith('/upload/')) {
+                            imageUrl = window.location.protocol + '//' + window.location.host + imageUrl;
+                        }
+                        displayImage(imageUrl, senderType, message.timestamp, message.senderId);
                     } else if (isSupportedMedia(message.content)) {
-                        displayVideo(message.content, senderType, message.timestamp, message.senderId);
+                        let videoUrl = message.content;
+                        if (videoUrl.startsWith('/upload/')) {
+                            videoUrl = window.location.protocol + '//' + window.location.host + videoUrl;
+                        }
+                        displayVideo(videoUrl, senderType, message.timestamp, message.senderId);
                     } else {
                         displayMessage(message.content, senderType, message.timestamp, message.senderId);
                     }
@@ -407,11 +461,19 @@
                     break;
     
                 case 'image':
-                    displayImage(message.content, senderType, message.timestamp, message.senderId);
+                    let imageUrl = message.content;
+                    if (imageUrl.startsWith('/upload/')) {
+                        imageUrl = window.location.protocol + '//' + window.location.host + imageUrl;
+                    }
+                    displayImage(imageUrl, senderType, message.timestamp, message.senderId);
                     break;
     
                 case 'audio':
-                    displayAudio(message.content, senderType, message.timestamp, message.senderId);
+                    let audioUrl = message.content;
+                    if (audioUrl.startsWith('/upload/')) {
+                        audioUrl = window.location.protocol + '//' + window.location.host + audioUrl;
+                    }
+                    displayAudio(audioUrl, senderType, message.timestamp, message.senderId);
                     break;
     
                 case 'system':
@@ -541,11 +603,18 @@
         imageContainer.className = 'image-container';
     
         const img = document.createElement('img');
-        img.src = content;
         img.className = 'chat-image thumbnail';
-    
+        
+        // 先将图片容器添加到DOM中
+        imageContainer.appendChild(img);
+        textBody.appendChild(imageContainer);
+        
+        // 设置图片加载事件
         img.onload = () => {
-            imageContainer.appendChild(img);
+            // 图片加载成功，不需要额外处理
+            if (imageContainer.querySelector('span')) {
+                imageContainer.querySelector('span').remove();
+            }
         };
     
         img.onerror = () => {
@@ -553,7 +622,20 @@
                 img.alt = 'Image failed to load';
                 const errorText = document.createElement('span');
                 errorText.textContent = 'Failed to load image.';
+                errorText.style.color = '#ff4d4f';
+                errorText.style.display = 'block';
+                errorText.style.padding = '5px';
                 imageContainer.appendChild(errorText);
+                
+                // 添加重试按钮
+                const retryButton = document.createElement('button');
+                retryButton.textContent = '重试加载';
+                retryButton.className = 'retry-button';
+                retryButton.onclick = (e) => {
+                    e.stopPropagation();
+                    img.src = content + '?t=' + new Date().getTime(); // 添加时间戳避免缓存
+                };
+                imageContainer.appendChild(retryButton);
             }
         };
     
@@ -576,8 +658,9 @@
                 fullImage.remove();
             };
         };
-    
-        textBody.appendChild(imageContainer);
+        
+        // 设置图片源，放在最后以确保事件处理程序已设置
+        img.src = content;
     
         const timeDiv = document.createElement('div');
         timeDiv.className = 'timestamp';

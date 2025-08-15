@@ -1,30 +1,44 @@
 /* Base styles */
+html {
+    overflow-x: hidden;
+}
+
 body {
     margin: 0;
     padding: 5px;
-    font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
+    overflow-x: hidden;
 }
 .chat-head{
     display: grid;
     grid-template-columns: auto 1fr auto; 
-    background-color: #ccc;    
-    padding:8px 20px;
+    background-color: #4a6fa5;    
+    padding: 12px 20px;
+    color: white;
+    border-radius: 8px 8px 0 0;
 }
 #id{
     font-weight: bold;
+}
+
+#logo {
+    font-weight: bold;
+    font-size: 1.2rem;
+    letter-spacing: 1px;
 }
 .chat-container {
     max-width: 800px;
     margin: 0 auto;
     background: white;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
     height: calc(100vh - 50px);
     min-height: 85vh; 
-    border:1px solid black;
+    border: none;
     overflow: hidden;
 }
 
@@ -34,31 +48,41 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
     scroll-behavior: smooth;
+    background-color: #f9f9f9;
 }
 
 .input-container{
-    padding: 10px;
+    padding: 15px;
     display: flex;
     gap: 10px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #eaeaea;
     align-items: center;
+    background-color: white;
 }
 .media-controls {
-    padding: 10px;
-    padding-top: 0px;
+    padding: 10px 15px 15px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
+    background-color: white;
+    border-top: 1px solid #f0f0f0;
 }
 
 #message-input {
     flex: 1;
-    padding: 10px;
+    padding: 12px 15px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 20px;
     font-size: 14px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#message-input:focus {
+    outline: none;
+    border-color: #4a6fa5;
+    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
 }
 
 #submit-message,
@@ -66,27 +90,43 @@ body {
 #submit-file,
 .record-button {
     padding: 10px 20px;
-    background-color:white;
-    color: black;
-    border:1px solid black;
-    border-radius: 4px;
+    background-color: #4a6fa5;
+    color: white;
+    border: none;
+    border-radius: 20px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
+    font-weight: 500;
 }
 
 #submit-message:hover,
 #submit-image:hover,
 #submit-file:hover,
 .record-button:hover {
-    background-color:#ddd;
+    background-color: #3a5a8c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .record-button.recording {
-    background-color:orange;
+    background-color: #e74c3c;
+    animation: pulse 1.5s infinite;
 }
 
 .record-button.recording:hover {
-    background-color:gold;
+    background-color: #c0392b;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
 }
 
 #file-input {
@@ -104,6 +144,12 @@ body {
     width: fit-content;
     max-width: 70%;
     box-sizing: border-box;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .sent {
@@ -131,31 +177,37 @@ body {
     flex-shrink: 0;
     position: absolute;
     top: 10px;
-    border:1px solid black;
-    color:black;
+    border: none;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .sent .message-sender {
     right: -10px;
+    background-color: #4a6fa5;
 }
 .received .message-sender {
     left: -10px;
+    background-color: #7d8a96;
 }
 .message-text-body {
     display: flex;
     flex-direction: column;
-    border-radius: 10px;
-    padding: 8px 12px;
+    border-radius: 18px;
+    padding: 12px 16px;
     max-width: 100%;
-    border:1px solid black;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .sent .message-text-body{
     margin-right: 30px;
-    background-color: #f0f0f0;
+    background-color: #e7f0ff;
+    border-bottom-right-radius: 4px;
 }
 .received .message-text-body{
-    margin-left:30px;
-    background-color: #ccc;
+    margin-left: 30px;
+    background-color: #f0f0f0;
+    border-bottom-left-radius: 4px;
 }
 
 
@@ -163,13 +215,15 @@ body {
     margin-bottom: 4px;
     word-wrap: break-word;
     max-width: 100%;
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.4;
 }
 
 .timestamp {
     font-size: 10px;
-    opacity: 0.7;
+    opacity: 0.6;
     text-align: right;
+    margin-top: 2px;
 }
 
 .sent .timestamp {
@@ -187,9 +241,13 @@ body {
 
 .system-message {
     text-align: center;
-    color: #666;
+    color: white;
     font-size: 12px;
-    padding: 5px;
+    padding: 8px 12px;
+    background-color: transparent;
+    border-radius: 15px;
+    margin: 5px auto;
+    max-width: 80%;
 }
 
 .error {
@@ -239,6 +297,24 @@ body {
     max-height: 200px;
     cursor: pointer;
     border-radius: 4px;
+}
+
+.retry-button {
+    padding: 6px 12px;
+    background-color: #4a6fa5;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    margin-top: 8px;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.retry-button:hover {
+    background-color: #3a5a8c;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .full-image-overlay {
@@ -398,5 +474,240 @@ button:disabled {
 }
 
 .qrcode-overlay:active {
+    cursor: pointer;
     display: none;
+}
+
+a {
+    color: #4a6fa5;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: #3a5a8c;
+    text-decoration: underline;
+}
+
+
+/* Home page styles - 首页专用样式 */
+:root {
+    --primary-color: #444;
+    --secondary-color: #666;
+    --background-color: #f0f0f0;
+    --card-background: #fff;
+    --border-color: #ddd;
+    --text-color: #333;
+    --light-gray: #e6e6e6;
+}
+
+/* 首页基础样式 */
+.home-body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 首页容器 */
+.welcome-container {
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: none;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 10px);
+    min-height: 85vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+/* 首页头部 */
+.welcome-header {
+    background-color: #4a6fa5;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    border-bottom: 1px solid #eaeaea;
+    border-radius: 8px 8px 0 0;
+}
+
+.welcome-header h1 {
+    margin: 0;
+    font-size: 2.5em;
+    font-weight: bold;
+    color: white;
+    letter-spacing: 1px;
+}
+
+.welcome-header p {
+    margin: 5px 0 0 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.2em;
+}
+
+/* 首页内容区域 */
+.welcome-content {
+    flex: 1;
+    padding: 40px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #f9f9f9;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.welcome-section {
+    max-width: 100%;
+    margin: 0 auto;
+    text-align: center;
+    box-sizing: border-box;
+    padding: 0 10px;
+}
+
+.welcome-section h2 {
+    color: #4a6fa5;
+    margin-bottom: 30px;
+    font-size: 1.8em;
+    font-weight: 600;
+}
+
+/* 特色功能列表 */
+.feature-list {
+    text-align: left;
+    margin: 30px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.feature-item {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: white;
+    border-radius: 8px;
+    border-left: 4px solid #4a6fa5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    width: 100%;
+    word-wrap: break-word;
+}
+
+.feature-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.feature-item p {
+    margin: 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.feature-item strong {
+    color: #4a6fa5;
+}
+
+/* 首页按钮 */
+.welcome-button {
+    display: inline-block;
+    padding: 15px 40px;
+    background-color: #4a6fa5;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    margin-top: 30px;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-button:hover {
+    background-color: #3a5a8c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 首页底部 */
+.welcome-footer {
+    background-color: white;
+    color: #666;
+    text-align: center;
+    padding: 15px;
+    border-top: 1px solid #eaeaea;
+}
+
+.welcome-footer p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+.copyright {
+    font-size: 0.7em;
+    opacity: 0.7;
+}
+
+/* 响应式设计 - 首页专用 */
+@media (max-width: 768px) {
+    .home-body {
+        padding: 0;
+    }
+    
+    .welcome-container {
+        height: 100vh;
+        min-height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+    
+    .welcome-content {
+        padding: 30px 20px;
+    }
+    
+    .welcome-header h1 {
+        font-size: 2em;
+    }
+    
+    .welcome-button {
+        padding: 12px 30px;
+        font-size: 1.1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-header {
+        padding: 15px;
+    }
+    
+    .welcome-header h1 {
+        font-size: 1.8em;
+    }
+    
+    .welcome-content {
+        padding: 20px;
+    }
+    
+    .feature-item {
+        margin: 10px 0;
+        padding: 12px;
+    }
 }
