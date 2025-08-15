@@ -26,6 +26,10 @@ db.serialize(() => {
         type TEXT,
         md5Hash TEXT
     )`);
+
+    // 为 chatId 和 md5Hash 创建索引以优化查询性能
+    db.run(`CREATE INDEX IF NOT EXISTS idx_chatId ON chatCollection (chatId)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_md5Hash ON chatCollection (md5Hash)`);
 });
 
 // 插入新聊天记录
@@ -39,7 +43,8 @@ async function insertChat(newChat) {
         const stmt = db.prepare("INSERT INTO chatCollection (chatId, senderId, content, type, md5Hash) VALUES (?, ?, ?, ?, ?)");
         stmt.run(newChat.chatId, newChat.senderId, newChat.content, newChat.type, newChat.md5Hash, function (err) {
             if (err) {
-                reject('Failed to insert chat: ' + err);
+                console.error('Failed to insert chat:', err);
+                reject(err);
             } else {
                 // 检查是否需要清理旧消息
                 cleanOldMessages(newChat.chatId);
@@ -50,38 +55,44 @@ async function insertChat(newChat) {
     });
 }
 
-// 清理每个聊天室的消息数，保持最新的 10 条记录
-function cleanOldMessages(chatId) {
-    db.all("SELECT COUNT(*) as count FROM chatCollection WHERE chatId = ?", [chatId], (err, rows) => {
-        if (err) {
-            console.error('Error checking message count:', err);
-            return;
-        }
-        if (rows[0].count > 10) {
-            db.all("SELECT * FROM chatCollection WHERE chatId = ? ORDER BY timestamp ASC LIMIT 1", [chatId], (err, oldestMessages) => {
-                if (err) {
-                    console.error('Error fetching oldest messages:', err);
-                    return;
-                }
-                if (oldestMessages.length > 0) {
-                    const oldestMessage = oldestMessages[0];
-                    // 如果是文件或图片类型，删除文件
-                    if (oldestMessage.type === 'file' || oldestMessage.type === 'image') {
-                        const fileName = path.basename(oldestMessage.content); // 提取文件名
-                        const filePath = path.join(__dirname, 'public', 'upload', fileName);
-                        fs.unlink(filePath)
-                            .catch(fileErr => console.error(`Failed to delete file: ${filePath}`, fileErr));
-                    }
-                    // 删除旧的数据库记录
-                    db.run("DELETE FROM chatCollection WHERE id = ?", [oldestMessage.id], (err) => {
-                        if (err) {
-                            console.error('Error deleting old message:', err);
-                        }
+// 优化后的清理函数 - 使用单个查询删除多余消息
+async function cleanOldMessages(chatId) {
+    try {
+        const messagesToDelete = await new Promise((resolve, reject) => {
+            db.all(
+                "SELECT id, content, type FROM chatCollection WHERE chatId = ? ORDER BY timestamp DESC LIMIT -1 OFFSET 10",
+                [chatId],
+                (err, rows) => err ? reject(err) : resolve(rows)
+            );
+        });
+
+        if (messagesToDelete.length > 0) {
+            const ids = messagesToDelete.map(msg => msg.id);
+            const deletePromises = messagesToDelete
+                .filter(msg => ['file', 'image'].includes(msg.type))
+                .map(msg => {
+                    const fileName = path.basename(msg.content);
+                    const filePath = path.join(__dirname, 'public', 'upload', fileName);
+                    return fs.unlink(filePath).catch(err => {
+                        console.error(`Failed to delete file: ${filePath}`, err);
                     });
+                });
+
+            await Promise.all(deletePromises);
+            
+            db.run(
+                `DELETE FROM chatCollection WHERE id IN (${ids.map(() => '?').join(',')})`,
+                ids,
+                (err) => {
+                    if (err) {
+                        console.error('Error deleting old messages:', err);
+                    }
                 }
-            });
+            );
         }
-    });
+    } catch (error) {
+        console.error('Error in cleanOldMessages:', error);
+    }
 }
 
 // 查询聊天记录
@@ -89,7 +100,8 @@ async function showHistory(chatId) {
     return new Promise((resolve, reject) => {
         db.all("SELECT * FROM chatCollection WHERE chatId = ? ORDER BY timestamp ASC", [chatId], (err, rows) => {
             if (err) {
-                reject('Error retrieving chat history: ' + err);
+                console.error('Error retrieving chat history:', err);
+                reject(err);
             } else {
                 resolve(rows);
             }
@@ -102,7 +114,8 @@ async function checkMd5Hash(md5Hash) {
     return new Promise((resolve, reject) => {
         db.get("SELECT content FROM chatCollection WHERE md5Hash = ?", [md5Hash], (err, row) => {
             if (err) {
-                reject('Error checking md5Hash: ' + err);
+                console.error('Error checking md5Hash:', err);
+                reject(err);
             } else {
                 resolve(row ? row.content : null);  // 返回对应的 content 或 null
             }

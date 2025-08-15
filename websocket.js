@@ -9,7 +9,7 @@ const MessageType = {
     ERROR: 'error'
 };
 
-const clients = new Map();
+const clientsByChatId = new Map();
 let wss; 
 const crc32 = require('crc-32');
 
@@ -29,20 +29,19 @@ function setupWebSocket(server) {
         const hash = (crc32.str(combinedInfo) >>> 0).toString(16).slice(0,2).toUpperCase(); // CRC32 校验和,非负数
         const clientInfo = {
             id: hash,
-            chatId: chatId,
+            ws: ws,
             lastActivity: new Date()
         };
     
-        clients.set(ws, clientInfo);
+        if (!clientsByChatId.has(chatId)) {
+            clientsByChatId.set(chatId, new Set());
+        }
+        clientsByChatId.get(chatId).add(clientInfo);
     
-        const onlineUsers = [];
-        clients.forEach((clientInfo) => {
-            if (clientInfo.chatId === chatId) {
-                onlineUsers.push(clientInfo.id);
-            }
-        });
+        const onlineUsers = Array.from(clientsByChatId.get(chatId)).map(c => c.id);
+
         sendSystemMessage(ws, `YourID:${hash}`);
-        sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}加入,当前在线${onlineUsers.length}人，代号：${onlineUsers.join(', ')}`);
+        sendSystemMessageToOthers(chatId, `${clientInfo.id}加入,当前在线${onlineUsers.length}人`);
     
         showHistory(chatId)
             .then(messages => {
@@ -72,12 +71,19 @@ function setupWebSocket(server) {
             });
     
         // 设置其他事件监听
-        ws.on('message', (message) => handleMessage(ws, message, clientInfo));
+        ws.on('message', (message) => handleMessage(ws, message, clientInfo, chatId));
         ws.on('close', () => {
             clearInterval(interval);
-            clients.delete(ws);
-            sendSystemMessageToOthers(clientInfo.chatId, `${clientInfo.id}离开,当前在线${onlineUsers.length}人，代号${onlineUsers.join(', ')}`);
-            });
+            const chatClients = clientsByChatId.get(chatId);
+            if (chatClients) {
+                chatClients.delete(clientInfo);
+                if (chatClients.size === 0) {
+                    clientsByChatId.delete(chatId);
+                }
+            }
+            const onlineUsers = chatClients ? Array.from(chatClients).map(c => c.id) : [];
+            sendSystemMessageToOthers(chatId, `${clientInfo.id}离开,当前在线${onlineUsers.length}人`);
+        });
         ws.on('error', (error) => handleError(ws, error, clientInfo));
     
         //add heartbeat to monitor connection health
@@ -97,49 +103,57 @@ function setupWebSocket(server) {
     });
 }
 
-function handleMessage(ws, message, clientInfo) {
+function handleMessage(ws, message, clientInfo, chatId) {
     try {
         clientInfo.lastActivity = new Date();
 
-        // Try to parse the message as JSON first
         let parsedMessage;
         const messageString = message.toString();
 
         try {
             parsedMessage = JSON.parse(messageString);
-            if(!parsedMessage.content){
-                sendErrorMessage(ws, 'Invalid message format');
-                return;
-            }
-            parsedMessage.clientId = clientInfo.id;
         } catch (e) {
             // If parsing fails, treat it as a plain text message
             parsedMessage = {
                 type: MessageType.TEXT,
-                content: messageString
+                content: messageString,
             };
         }
-        chatId = parsedMessage.chatId;
+
+        // Validate message structure
+        if (!parsedMessage.type || !parsedMessage.content) {
+            sendErrorMessage(ws, 'Invalid message format: type and content are required.');
+            return;
+        }
+
+        // Ensure chatId is part of the message for broadcasting and storage
+        parsedMessage.chatId = chatId;
+        parsedMessage.senderId = clientInfo.id;
+        parsedMessage.timestamp = new Date().toISOString();
+
+
         if (Object.values(MessageType).includes(parsedMessage.type)) {
+            // Broadcast the message to other clients
             broadcast(chatId, {
                 type: parsedMessage.type,
                 senderId: clientInfo.id,
                 content: parsedMessage.content,
-                timestamp: new Date().toISOString()
+                timestamp: parsedMessage.timestamp
             }, ws);
+
+            // Save message to database
+            insertChat({
+                chatId: parsedMessage.chatId,
+                senderId: parsedMessage.senderId,
+                content: parsedMessage.content,
+                type: parsedMessage.type,
+                timestamp: parsedMessage.timestamp,
+                md5Hash: parsedMessage.md5Hash
+            });
         } else {
-            console.warn(`Unknown message type from client ${clientInfo.id}`);
-            sendErrorMessage(ws, 'Invalid message type');
+            console.warn(`Unknown message type from client ${clientInfo.id}: ${parsedMessage.type}`);
+            sendErrorMessage(ws, `Invalid message type: ${parsedMessage.type}`);
         }
-        //save message to database
-        insertChat({
-            chatId: chatId,
-            senderId: clientInfo.id,
-            content: parsedMessage.content,
-            type: parsedMessage.type,
-            timestamp: new Date().toISOString(),
-            md5Hash: parsedMessage.md5Hash
-        });
 
     } catch (error) {
         console.error('Error processing message:', error);
@@ -153,7 +167,7 @@ function handleError(ws, error, clientInfo) {
     const errorDetails = {
         timestamp: new Date().toISOString(),
         clientId: clientInfo.id,
-        chatId: clientInfo.chatId,
+        chatId: chatId,
         errorMessage: error.message,
         errorStack: error.stack
     };
@@ -165,7 +179,6 @@ function handleError(ws, error, clientInfo) {
     if (ws.readyState === WebSocket.OPEN) {
         ws.close(1011, 'Internal Server Error');
     }
-    clients.delete(ws);
 }
 
 
@@ -180,9 +193,12 @@ function sendSystemMessage(ws, message) {
 }
 
 function sendSystemMessageToOthers(chatId,message) {
-    clients.forEach((clientInfo, ws) => {
-        if (clientInfo.chatId == chatId){sendSystemMessage(ws, message);}
-    });
+    const chatClients = clientsByChatId.get(chatId);
+    if (chatClients) {
+        chatClients.forEach(client => {
+            sendSystemMessage(client.ws, message);
+        });
+    }
 }
 
 function sendErrorMessage(ws, message) {
@@ -197,16 +213,19 @@ function sendErrorMessage(ws, message) {
 
 function broadcast(chatId, message, sender = null) {
     const messageString = JSON.stringify(message);
+    const chatClients = clientsByChatId.get(chatId);
 
-    clients.forEach((clientInfo, ws) => {
-        if (sender !== ws && ws.readyState === WebSocket.OPEN && clientInfo.chatId === chatId) {
-            try {
-                ws.send(messageString);
-            } catch (error) {
-                console.error(`Failed to send message to client ${clientInfo.id}:`, error);
+    if (chatClients) {
+        chatClients.forEach(client => {
+            if (client.ws !== sender && client.ws.readyState === WebSocket.OPEN) {
+                try {
+                    client.ws.send(messageString);
+                } catch (error) {
+                    console.error(`Failed to send message to client ${client.id}:`, error);
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 let shuttingDown = false;

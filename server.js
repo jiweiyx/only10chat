@@ -1,6 +1,6 @@
 
 const http = require('http');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4, validate: uuidValidate } = require('uuid');
 const express = require('express');
 const path = require('path');
 const uploadRouter = require('./upload');
@@ -12,12 +12,17 @@ const app = express();
 const server = http.createServer(app);
 
 app.get('/', (req, res) => {
-    res.sendFile('index.html', { root: path.join(__dirname, 'public') });
-})
+    res.sendFile('index.html', { root: path.join(__dirname, 'public') }, (err) => {
+        if (err) {
+            console.error('Error sending index.html:', err);
+            res.status(500).send('Internal Server Error');
+        }
+    });
+});
 
 app.get('/chat', (req, res) => {
-    chatId = req.query.id;
-    if (!chatId) {
+    const chatId = req.query.id;
+    if (!chatId || !uuidValidate(chatId)) {
         const newChatID = uuidv4();
         return res.redirect(`/chat?id=${newChatID}`);
     }
@@ -25,11 +30,12 @@ app.get('/chat', (req, res) => {
     // 返回 chat.html 文件
     res.sendFile('chat.html', { root: path.join(__dirname, 'public') }, (err) => {
         if (err) {
+            console.error('Error sending chat.html:', err);
             res.status(500).send('Internal Server Error');
         }
     });
 });
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 
 app.use('/upload', uploadRouter);  // 挂载路由
 

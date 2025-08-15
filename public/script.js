@@ -286,27 +286,26 @@
     }
     uploadFileInBackground(localUploadId);        
     }
-    async function calculateFileMD5(file) {
-        const spark = new SparkMD5.ArrayBuffer();
-        const fileSize = file.size;
+    function calculateFileMD5(file) {
+        return new Promise((resolve, reject) => {
+            const worker = new Worker('/md5-worker.js');
+            
+            worker.onmessage = (e) => {
+                if (e.data.md5) {
+                    resolve(e.data.md5);
+                } else if (e.data.error) {
+                    reject(new Error(e.data.error));
+                }
+                worker.terminate();
+            };
     
-        // 如果文件小于 1MB，直接计算整个文件的 MD5
-        if (fileSize < 1 * 1024 * 1024) {
-            const arrayBuffer = await file.arrayBuffer();
-            spark.append(arrayBuffer);
-        } else {
-            // 文件大于 1MB，计算前 512KB 和最后 512KB 的 MD5
-            const firstPart = file.slice(0, 512 * 1024);
-            const lastPart = file.slice(fileSize - 512 * 1024);
+            worker.onerror = (err) => {
+                reject(err);
+                worker.terminate();
+            };
     
-            const firstPartBuffer = await firstPart.arrayBuffer();
-            const lastPartBuffer = await lastPart.arrayBuffer();
-    
-            spark.append(firstPartBuffer);
-            spark.append(lastPartBuffer);
-        }
-    
-        return spark.end(); // 返回计算出的 MD5 值
+            worker.postMessage({ file });
+        });
     }
     async function uploadFileInBackground(localUploadId) {
         const file = currentFileId.get(localUploadId);
@@ -403,8 +402,12 @@
         } catch (error) {
             // 错误处理：显示文件上传失败消息
             toast(`上传失败: ${error.message}`, true);
-            if (progressDisplayBar) {
-                progressDisplayBar.textContent = '上传失败';
+            const progressContainer = progressDisplayBar?.parentElement;
+            if (progressContainer) {
+                const pauseButton = progressContainer.querySelector('.progress-pause-button');
+                const cancelButton = progressContainer.querySelector('.progress-cancel-button');
+                if (pauseButton) pauseButton.style.display = 'none'; 
+                if (cancelButton) cancelButton.textContent = '清除';
             }
         }
     }    
@@ -435,66 +438,56 @@
     }
     function handleMessage(message) {
         const senderType = message.senderId === myID ? 'sent' : 'received';
+        const displayActions = {
+            file: (msg) => {
+                let fileUrl = msg.content;
+                if (fileUrl.startsWith('/upload/')) {
+                    fileUrl = `${window.location.protocol}//${window.location.host}${fileUrl}`;
+                }
+
+                if (isValidImageURL(fileUrl)) {
+                    displayImage(fileUrl, senderType, msg.timestamp, msg.senderId);
+                } else if (isSupportedMedia(fileUrl)) {
+                    displayVideo(fileUrl, senderType, msg.timestamp, msg.senderId);
+                } else {
+                    displayMessage(fileUrl, senderType, msg.timestamp, msg.senderId);
+                }
+            },
+            text: (msg) => displayMessage(msg.content, senderType, msg.timestamp, msg.senderId),
+            image: (msg) => {
+                let imageUrl = msg.content;
+                if (imageUrl.startsWith('/upload/')) {
+                    imageUrl = `${window.location.protocol}//${window.location.host}${imageUrl}`;
+                }
+                displayImage(imageUrl, senderType, msg.timestamp, msg.senderId);
+            },
+            audio: (msg) => {
+                let audioUrl = msg.content;
+                if (audioUrl.startsWith('/upload/')) {
+                    audioUrl = `${window.location.protocol}//${window.location.host}${audioUrl}`;
+                }
+                displayAudio(audioUrl, senderType, msg.timestamp, msg.senderId);
+            },
+            system: (msg) => {
+                if (msg.content.startsWith('YourID')) {
+                    myID = msg.content.split(':')[1].trim();
+                }
+                displayOnTop(msg.content, false);
+            },
+            error: (msg) => displayOnTop(msg.content, true),
+        };
+
         try {
-            switch (message.type) {
-                case 'file':
-                    if (isValidImageURL(message.content)) {
-                        // 确保图片URL是完整的，如果是相对路径则转换为绝对路径
-                        let imageUrl = message.content;
-                        if (imageUrl.startsWith('/upload/')) {
-                            imageUrl = window.location.protocol + '//' + window.location.host + imageUrl;
-                        }
-                        displayImage(imageUrl, senderType, message.timestamp, message.senderId);
-                    } else if (isSupportedMedia(message.content)) {
-                        let videoUrl = message.content;
-                        if (videoUrl.startsWith('/upload/')) {
-                            videoUrl = window.location.protocol + '//' + window.location.host + videoUrl;
-                        }
-                        displayVideo(videoUrl, senderType, message.timestamp, message.senderId);
-                    } else {
-                        displayMessage(message.content, senderType, message.timestamp, message.senderId);
-                    }
-                    break;
-    
-                case 'text':
-                    displayMessage(message.content, senderType, message.timestamp, message.senderId);
-                    break;
-    
-                case 'image':
-                    let imageUrl = message.content;
-                    if (imageUrl.startsWith('/upload/')) {
-                        imageUrl = window.location.protocol + '//' + window.location.host + imageUrl;
-                    }
-                    displayImage(imageUrl, senderType, message.timestamp, message.senderId);
-                    break;
-    
-                case 'audio':
-                    let audioUrl = message.content;
-                    if (audioUrl.startsWith('/upload/')) {
-                        audioUrl = window.location.protocol + '//' + window.location.host + audioUrl;
-                    }
-                    displayAudio(audioUrl, senderType, message.timestamp, message.senderId);
-                    break;
-    
-                case 'system':
-                    if (message.content.startsWith('YourID')) {
-                        myID = message.content.split(':')[1].trim();
-                    }
-                    displayOnTop(message.content, false);
-                    break;
-    
-                case 'error':
-                    displayOnTop(message.content, true);
-                    break;
-    
-                default:
-                    toast(`消息类型不支持：${message.type}`, true);
-                    break;
+            const action = displayActions[message.type];
+            if (action) {
+                action(message);
+            } else {
+                toast(`消息类型不支持：${message.type}`, true);
             }
         } catch (error) {
             toast(`显示消息出错${error}`, true);
         }
-    }     
+    }
     function sendMessage(content, type = 'text',fileID,md5Hash) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             toast('Connection not available', true);
@@ -611,14 +604,21 @@
         
         // 设置图片加载事件
         img.onload = () => {
-            // 图片加载成功，不需要额外处理
-            if (imageContainer.querySelector('span')) {
-                imageContainer.querySelector('span').remove();
+            // 图片加载成功，移除任何加载指示
+            const loadingIndicator = imageContainer.querySelector('.loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
             }
         };
     
         img.onerror = () => {
-            if (!imageContainer.querySelector('span')) {
+            // 移除加载指示
+            const loadingIndicator = imageContainer.querySelector('.loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+
+            if (!imageContainer.querySelector('.retry-button')) {
                 img.alt = 'Image failed to load';
                 const errorText = document.createElement('span');
                 errorText.textContent = 'Failed to load image.';
@@ -633,11 +633,26 @@
                 retryButton.className = 'retry-button';
                 retryButton.onclick = (e) => {
                     e.stopPropagation();
+                    // 移除错误信息和重试按钮
+                    errorText.remove();
+                    retryButton.remove();
+                    // 添加加载指示
+                    const newLoadingIndicator = document.createElement('span');
+                    newLoadingIndicator.className = 'loading-indicator';
+                    newLoadingIndicator.textContent = 'Loading...';
+                    imageContainer.appendChild(newLoadingIndicator);
+                    // 重新加载图片
                     img.src = content + '?t=' + new Date().getTime(); // 添加时间戳避免缓存
                 };
                 imageContainer.appendChild(retryButton);
             }
         };
+
+        // 添加加载指示
+        const loadingIndicator = document.createElement('span');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.textContent = 'Loading...';
+        imageContainer.appendChild(loadingIndicator);
     
         img.onclick = () => {
             const fullImage = document.createElement('div');
